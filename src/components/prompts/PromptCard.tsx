@@ -1,0 +1,122 @@
+'use client'
+
+import { useState } from 'react'
+import { Copy, Heart, MessageCircle, Check } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { ArtlistEmbed } from './ArtlistEmbed'
+import { CommentsDrawer } from './CommentsDrawer'
+import { aiModelLabels, timeAgo } from '@/lib/mock-data'
+import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
+
+interface Prompt {
+  id: string
+  prompt_text: string
+  notes: string | null
+  ai_model: string
+  artlist_video_url: string | null
+  created_by_name: string
+  created_at: string
+  is_favorited: boolean
+  comment_count: number
+}
+
+export function PromptCard({ prompt }: { prompt: Prompt }) {
+  const [copied, setCopied] = useState(false)
+  const [favorited, setFavorited] = useState(prompt.is_favorited)
+  const [commentCount, setCommentCount] = useState(prompt.comment_count)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(prompt.prompt_text)
+    setCopied(true)
+    toast.success('הפרומפט הועתק!')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  const handleFavorite = () => {
+    setFavorited((prev) => !prev)
+    toast.success(favorited ? 'הוסר מהמועדפים' : 'נוסף למועדפים')
+  }
+
+  return (
+    <>
+      <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-border/80 transition-colors">
+        <div className="flex flex-col lg:flex-row">
+          <div className="flex-1 p-5 space-y-3 min-w-0">
+            <div className="flex items-start gap-2">
+              <Badge variant="outline" className="text-[10px] h-5 shrink-0">
+                {aiModelLabels[prompt.ai_model] || prompt.ai_model}
+              </Badge>
+              <p className="text-xs text-muted-foreground">
+                {prompt.created_by_name} · {timeAgo(prompt.created_at)}
+              </p>
+            </div>
+
+            <p className="text-sm leading-relaxed text-foreground/90 font-mono">
+              {prompt.prompt_text}
+            </p>
+
+            {prompt.notes && (
+              <p className="text-xs text-muted-foreground border-r-2 border-border pr-3 leading-relaxed">
+                {prompt.notes}
+              </p>
+            )}
+
+            <div className="flex items-center gap-1 pt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopy}
+                className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? 'הועתק' : 'העתק'}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleFavorite}
+                className={cn(
+                  'h-7 gap-1.5 text-xs',
+                  favorited
+                    ? 'text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <Heart
+                  className={cn('h-3.5 w-3.5', favorited && 'fill-current')}
+                />
+                {favorited ? 'מועדף' : 'מועדף'}
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCommentsOpen(true)}
+                className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {commentCount > 0 ? commentCount : 'תגובות'}
+              </Button>
+            </div>
+          </div>
+
+          {prompt.artlist_video_url && (
+            <div className="lg:w-80 xl:w-96 p-4 border-t lg:border-t-0 lg:border-r border-border bg-background/30 shrink-0">
+              <ArtlistEmbed url={prompt.artlist_video_url} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <CommentsDrawer
+        promptId={prompt.id}
+        open={commentsOpen}
+        onOpenChange={setCommentsOpen}
+      />
+    </>
+  )
+}
