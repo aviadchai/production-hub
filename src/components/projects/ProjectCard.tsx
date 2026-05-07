@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
 import { Film, Layers } from 'lucide-react'
+import { deptColors } from '@/lib/mock-data'
 
 interface Project {
   id: string
@@ -14,20 +14,24 @@ interface Project {
   prompt_count: number
 }
 
-export function ProjectCard({ project }: { project: Project }) {
+export function ProjectCard({ project, deptId }: { project: Project; deptId?: string }) {
+  const colors = deptId ? deptColors[deptId] : null
+
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="group block rounded-xl border border-border bg-card hover:bg-card/80 hover:border-border/60 transition-all p-5 space-y-3"
+      className={`group block rounded-xl border bg-card hover:bg-card/80 transition-all p-5 space-y-3 ${
+        colors ? colors.border : 'border-border'
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="font-semibold text-sm leading-tight group-hover:text-foreground/90 transition-colors">
           {project.name}
         </h3>
         {project.status === 'archived' && (
-          <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground shrink-0">
             Archived
-          </Badge>
+          </span>
         )}
       </div>
 
@@ -37,11 +41,12 @@ export function ProjectCard({ project }: { project: Project }) {
         </p>
       )}
 
-      <div className="flex items-center gap-3 pt-1">
-        <Badge variant="outline" className="text-[10px] h-5">
+      {colors && (
+        <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border ${colors.badge}`}>
+          <div className={`h-1.5 w-1.5 rounded-full ${colors.dot}`} />
           {project.department_name}
-        </Badge>
-      </div>
+        </span>
+      )}
 
       <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
         <span className="flex items-center gap-1">
