@@ -8,17 +8,17 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Search } from 'lucide-react'
 
-const departments = [
-  { id: 'all', label: 'הכל' },
-  { id: '1', label: 'פרודקשן' },
-  { id: '2', label: 'עיצוב' },
-  { id: '3', label: 'תוכן' },
+const deptFilters = [
+  { id: 'all', label: 'All' },
+  { id: '1', label: 'Production' },
+  { id: '2', label: 'Design' },
+  { id: '3', label: 'Content' },
 ]
 
-const statuses = [
-  { id: 'all', label: 'הכל' },
-  { id: 'active', label: 'פעיל' },
-  { id: 'archived', label: 'ארכיון' },
+const statusFilters = [
+  { id: 'all', label: 'All' },
+  { id: 'active', label: 'Active' },
+  { id: 'archived', label: 'Archived' },
 ]
 
 export default function ProjectsPage() {
@@ -37,21 +37,21 @@ export default function ProjectsPage() {
   })
 
   return (
-    <AppLayout title="כל הפרויקטים">
+    <AppLayout title="All Projects">
       <div className="space-y-6 max-w-6xl">
         <div className="flex flex-wrap gap-3 items-center">
           <div className="relative flex-1 min-w-48 max-w-xs">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="חיפוש פרויקטים..."
-              className="pr-9 h-8 text-sm"
+              placeholder="Search projects..."
+              className="pl-9 h-8 text-sm"
             />
           </div>
 
           <div className="flex gap-1">
-            {departments.map((d) => (
+            {deptFilters.map((d) => (
               <button
                 key={d.id}
                 onClick={() => setDeptFilter(d.id)}
@@ -67,7 +67,7 @@ export default function ProjectsPage() {
           </div>
 
           <div className="flex gap-1">
-            {statuses.map((s) => (
+            {statusFilters.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setStatusFilter(s.id)}
@@ -82,14 +82,14 @@ export default function ProjectsPage() {
             ))}
           </div>
 
-          <Badge variant="outline" className="text-[10px] h-5 mr-auto">
-            {filtered.length} פרויקטים
+          <Badge variant="outline" className="text-[10px] h-5 ml-auto">
+            {filtered.length} projects
           </Badge>
         </div>
 
         {filtered.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground text-sm">
-            לא נמצאו פרויקטים
+            No projects found
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

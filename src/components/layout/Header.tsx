@@ -36,21 +36,18 @@ export function Header({ title }: HeaderProps) {
       {title && (
         <h1 className="text-sm font-semibold text-foreground truncate">{title}</h1>
       )}
-      <form onSubmit={handleSearch} className="flex-1 max-w-sm mr-auto">
+      <form onSubmit={handleSearch} className="flex-1 max-w-sm ml-auto">
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             id="global-search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="חיפוש... (Ctrl+K)"
-            className="pr-9 h-8 text-sm bg-secondary/60 border-0 focus-visible:ring-1"
+            placeholder="Search... (Ctrl+K)"
+            className="pl-9 h-8 text-sm bg-secondary/60 border-0 focus-visible:ring-1"
           />
         </div>
       </form>
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <kbd className="px-1.5 py-0.5 rounded border border-border text-[10px] font-mono">⌘K</kbd>
-      </div>
     </header>
   )
 }

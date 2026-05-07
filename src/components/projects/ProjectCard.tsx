@@ -14,12 +14,6 @@ interface Project {
   prompt_count: number
 }
 
-const deptColors: Record<string, string> = {
-  production: 'bg-white/10 text-white',
-  design: 'bg-white/10 text-white',
-  content: 'bg-white/10 text-white',
-}
-
 export function ProjectCard({ project }: { project: Project }) {
   return (
     <Link
@@ -32,7 +26,7 @@ export function ProjectCard({ project }: { project: Project }) {
         </h3>
         {project.status === 'archived' && (
           <Badge variant="secondary" className="text-[10px] h-4 shrink-0">
-            ארכיון
+            Archived
           </Badge>
         )}
       </div>
@@ -44,10 +38,7 @@ export function ProjectCard({ project }: { project: Project }) {
       )}
 
       <div className="flex items-center gap-3 pt-1">
-        <Badge
-          variant="outline"
-          className="text-[10px] h-5"
-        >
+        <Badge variant="outline" className="text-[10px] h-5">
           {project.department_name}
         </Badge>
       </div>
@@ -55,13 +46,13 @@ export function ProjectCard({ project }: { project: Project }) {
       <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
         <span className="flex items-center gap-1">
           <Layers className="h-3 w-3" />
-          {project.scene_count} סצנות
+          {project.scene_count} scenes
         </span>
         <span className="flex items-center gap-1">
           <Film className="h-3 w-3" />
-          {project.prompt_count} פרומפטים
+          {project.prompt_count} prompts
         </span>
-        <span className="mr-auto text-[10px]">{project.created_by_name}</span>
+        <span className="ml-auto text-[10px]">{project.created_by_name}</span>
       </div>
     </Link>
   )

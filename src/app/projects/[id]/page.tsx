@@ -1,10 +1,11 @@
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PromptCard } from '@/components/prompts/PromptCard'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { AssignMembersButton } from '@/components/projects/AssignMembersButton'
 import { projects, scenes, prompts } from '@/lib/mock-data'
 import { notFound } from 'next/navigation'
 import { Layers, Film, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -32,31 +33,34 @@ export default async function ProjectPage({ params }: Props) {
             </div>
             <Button size="sm" className="gap-2 shrink-0">
               <Plus className="h-3.5 w-3.5" />
-              פרומפט חדש
+              New Prompt
             </Button>
           </div>
 
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-4 flex-wrap">
             <Badge variant="outline" className="text-[10px]">
               {project.department_name}
             </Badge>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Layers className="h-3 w-3" />
-              {project.scene_count} סצנות
+              {project.scene_count} scenes
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Film className="h-3 w-3" />
-              {project.prompt_count} פרומפטים
+              {project.prompt_count} prompts
             </span>
             {project.status === 'archived' && (
-              <Badge variant="secondary" className="text-[10px]">ארכיון</Badge>
+              <Badge variant="secondary" className="text-[10px]">Archived</Badge>
             )}
+            <div className="ml-auto">
+              <AssignMembersButton initialMembers={['1', '2']} />
+            </div>
           </div>
         </div>
 
         {projectScenes.length === 0 ? (
           <div className="text-center py-20 text-muted-foreground text-sm border border-dashed border-border rounded-xl">
-            אין סצנות עדיין. הוסף את הראשונה!
+            No scenes yet. Add the first one!
           </div>
         ) : (
           <div className="space-y-8">
@@ -71,20 +75,20 @@ export default async function ProjectPage({ params }: Props) {
                     <h2 className="text-sm font-semibold">{scene.title}</h2>
                     <div className="flex-1 h-px bg-border" />
                     <span className="text-[10px] text-muted-foreground">
-                      {scenePrompts.length} פרומפטים
+                      {scenePrompts.length} prompts
                     </span>
                     <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1">
                       <Plus className="h-3 w-3" />
-                      הוסף
+                      Add
                     </Button>
                   </div>
 
                   {scenePrompts.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground text-xs border border-dashed border-border rounded-lg mr-8">
-                      אין פרומפטים בסצנה זו
+                    <div className="text-center py-8 text-muted-foreground text-xs border border-dashed border-border rounded-lg ml-8">
+                      No prompts in this scene
                     </div>
                   ) : (
-                    <div className="space-y-3 mr-8">
+                    <div className="space-y-3 ml-8">
                       {scenePrompts.map((prompt) => (
                         <PromptCard key={prompt.id} prompt={prompt} />
                       ))}

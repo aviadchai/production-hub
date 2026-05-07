@@ -25,19 +25,18 @@ interface Prompt {
 export function PromptCard({ prompt }: { prompt: Prompt }) {
   const [copied, setCopied] = useState(false)
   const [favorited, setFavorited] = useState(prompt.is_favorited)
-  const [commentCount, setCommentCount] = useState(prompt.comment_count)
   const [commentsOpen, setCommentsOpen] = useState(false)
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(prompt.prompt_text)
     setCopied(true)
-    toast.success('הפרומפט הועתק!')
+    toast.success('Prompt copied!')
     setTimeout(() => setCopied(false), 2000)
   }
 
   const handleFavorite = () => {
     setFavorited((prev) => !prev)
-    toast.success(favorited ? 'הוסר מהמועדפים' : 'נוסף למועדפים')
+    toast.success(favorited ? 'Removed from favorites' : 'Added to favorites')
   }
 
   return (
@@ -59,7 +58,7 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
             </p>
 
             {prompt.notes && (
-              <p className="text-xs text-muted-foreground border-r-2 border-border pr-3 leading-relaxed">
+              <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 leading-relaxed">
                 {prompt.notes}
               </p>
             )}
@@ -72,7 +71,7 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
                 className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'הועתק' : 'העתק'}
+                {copied ? 'Copied' : 'Copy'}
               </Button>
 
               <Button
@@ -81,15 +80,11 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
                 onClick={handleFavorite}
                 className={cn(
                   'h-7 gap-1.5 text-xs',
-                  favorited
-                    ? 'text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
+                  favorited ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
                 )}
               >
-                <Heart
-                  className={cn('h-3.5 w-3.5', favorited && 'fill-current')}
-                />
-                {favorited ? 'מועדף' : 'מועדף'}
+                <Heart className={cn('h-3.5 w-3.5', favorited && 'fill-current')} />
+                {favorited ? 'Saved' : 'Save'}
               </Button>
 
               <Button
@@ -99,13 +94,13 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
                 className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
               >
                 <MessageCircle className="h-3.5 w-3.5" />
-                {commentCount > 0 ? commentCount : 'תגובות'}
+                {prompt.comment_count > 0 ? prompt.comment_count : 'Comment'}
               </Button>
             </div>
           </div>
 
           {prompt.artlist_video_url && (
-            <div className="lg:w-80 xl:w-96 p-4 border-t lg:border-t-0 lg:border-r border-border bg-background/30 shrink-0">
+            <div className="lg:w-72 xl:w-80 p-4 border-t lg:border-t-0 lg:border-l border-border bg-background/30 shrink-0">
               <ArtlistEmbed url={prompt.artlist_video_url} />
             </div>
           )}

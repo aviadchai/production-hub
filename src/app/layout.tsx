@@ -1,25 +1,25 @@
 import type { Metadata } from 'next'
-import { Heebo } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const heebo = Heebo({
-  subsets: ['hebrew', 'latin'],
+const inter = Inter({
+  subsets: ['latin'],
   variable: '--font-heebo',
   display: 'swap',
 })
 
 export const metadata: Metadata = {
   title: 'Production Hub',
-  description: 'מרכז הפרויקטים הפנימי של הצוות',
+  description: 'Internal project hub for the video team',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} dark`}>
+    <html lang="en" dir="ltr" className={`${inter.variable} dark`}>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
-        <Toaster position="bottom-center" dir="rtl" />
+        <Toaster position="bottom-center" />
       </body>
     </html>
   )

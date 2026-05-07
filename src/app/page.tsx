@@ -11,13 +11,12 @@ export default function DashboardPage() {
       <div className="space-y-8 max-w-6xl">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            שלום, {currentUser.full_name.split(' ')[0]} 👋
+            Welcome back, {currentUser.full_name.split(' ')[0]}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            ברוך הבא ל‑{userDept?.name_he}
+            {userDept?.name_en} Department
           </p>
         </div>
-
         <DepartmentTabs activeProjects={activeProjects} currentDeptId={currentUser.department_id} />
       </div>
     </AppLayout>

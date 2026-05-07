@@ -29,7 +29,7 @@ export function DepartmentTabs({ activeProjects, currentDeptId }: DepartmentTabs
 
   return (
     <div className="space-y-6">
-      <div className="flex gap-1 border-b border-border pb-0">
+      <div className="flex gap-1 border-b border-border">
         {departments.map((dept) => (
           <button
             key={dept.id}
@@ -40,14 +40,14 @@ export function DepartmentTabs({ activeProjects, currentDeptId }: DepartmentTabs
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {dept.name_he}
+            {dept.name_en}
           </button>
         ))}
       </div>
 
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-muted-foreground text-sm">
-          אין פרויקטים פעילים במחלקה זו
+          No active projects in this department
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
