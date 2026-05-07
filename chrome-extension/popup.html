@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Production Hub</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 340px;
+      background: #0f0f0f;
+      color: #e5e5e5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #1f1f1f;
+    }
+
+    .logo {
+      width: 22px;
+      height: 22px;
+      background: #e5e5e5;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #0f0f0f;
+      font-weight: 700;
+    }
+
+    .header h1 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .header .badge {
+      margin-left: auto;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: #1a1a1a;
+      color: #888;
+      border: 1px solid #2a2a2a;
+    }
+
+    .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .not-artlist {
+      text-align: center;
+      padding: 24px 16px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .not-artlist strong { color: #aaa; display: block; margin-bottom: 6px; }
+
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #666; font-weight: 500; }
+
+    textarea, input, select {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 7px;
+      color: #e5e5e5;
+      font-size: 12px;
+      padding: 8px 10px;
+      font-family: inherit;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+    textarea:focus, input:focus, select:focus { border-color: #444; }
+    textarea { resize: none; line-height: 1.5; min-height: 90px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+
+    .row { display: flex; gap: 8px; }
+    .row .field { flex: 1; }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .meta-pill {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      background: #1a1a1a;
+      color: #888;
+      border: 1px solid #2a2a2a;
+    }
+
+    .video-found {
+      background: #0d1f12;
+      border: 1px solid #1a3a22;
+      border-radius: 7px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #4ade80;
+    }
+    .video-found .dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; flex-shrink: 0; }
+
+    .no-video {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .actions { display: flex; gap: 8px; padding-top: 2px; }
+
+    button {
+      border: none;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 8px 14px;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: #e5e5e5;
+      color: #0f0f0f;
+      flex: 1;
+    }
+    .btn-primary:hover { background: #fff; }
+    .btn-primary:disabled { background: #2a2a2a; color: #555; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: #1a1a1a;
+      color: #aaa;
+      border: 1px solid #2a2a2a;
+    }
+    .btn-secondary:hover { background: #222; color: #e5e5e5; }
+
+    .success {
+      background: #0d1f12;
+      border: 1px solid #1a3a22;
+      border-radius: 7px;
+      padding: 12px;
+      text-align: center;
+      color: #4ade80;
+      font-size: 12px;
+    }
+
+    .loading { color: #666; font-size: 12px; text-align: center; padding: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">PH</div>
+    <h1>Production Hub</h1>
+    <span class="badge" id="status-badge">–</span>
+  </div>
+
+  <div class="body" id="main-body">
+    <div class="loading">Loading...</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

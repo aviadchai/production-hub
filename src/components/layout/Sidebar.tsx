@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FolderOpen, Heart, Settings, Users, Film } from 'lucide-react'
+import { LayoutDashboard, FolderOpen, Heart, Settings, Users, Film, Download } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { currentUser } from '@/lib/mock-data'
 
@@ -10,6 +10,7 @@ const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/projects', label: 'All Projects', icon: FolderOpen },
   { href: '/favorites', label: 'Favorites', icon: Heart },
+  { href: '/install', label: 'Artlist Shortcut', icon: Download },
 ]
 
 const adminItems = [

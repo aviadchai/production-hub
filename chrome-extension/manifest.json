@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Production Hub",
+  "version": "1.0.0",
+  "description": "Send Artlist scenes directly to Production Hub",
+  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
+  "host_permissions": ["https://toolkit.artlist.io/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://toolkit.artlist.io/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
