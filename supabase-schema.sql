@@ -37,8 +37,9 @@ create table scenes (
 create table prompts (
   id uuid primary key default gen_random_uuid(),
   scene_id uuid references scenes(id) on delete cascade,
-  prompt_text text not null,
+  prompt_text text not null default '',
   ai_model text default 'other',
+  notes text,
   artlist_video_url text,
   artlist_video_src text,
   asset_width int,
