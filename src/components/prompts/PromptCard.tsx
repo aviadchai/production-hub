@@ -113,11 +113,12 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
               <p className="text-xs font-medium text-foreground/70">{prompt.asset_title}</p>
             )}
 
-            {prompt.prompt_text && (
-              <p className="text-sm leading-relaxed text-foreground/90 font-mono">
-                {prompt.prompt_text}
-              </p>
-            )}
+            <p className={cn(
+              "text-sm leading-relaxed font-mono",
+              prompt.prompt_text ? "text-foreground/90" : "text-muted-foreground/40 italic"
+            )}>
+              {prompt.prompt_text || "No prompt text"}
+            </p>
 
             {prompt.notes && (
               <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 leading-relaxed">

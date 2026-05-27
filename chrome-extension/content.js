@@ -167,16 +167,44 @@ setInterval(() => {
 }, 300)
 
 function findMainTextarea() {
-  // Try <textarea> first
+  // 1. Explicit prompt selectors (Artlist-specific and common patterns)
+  const promptSelectors = [
+    '[data-testid*="prompt" i]',
+    '[aria-label*="prompt" i]',
+    '[placeholder*="prompt" i]',
+    '[id*="prompt" i]',
+    '[class*="prompt" i] textarea',
+    '[class*="prompt" i] [contenteditable]',
+    '[class*="prompt" i]',
+  ]
+  for (const sel of promptSelectors) {
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        const r = el.getBoundingClientRect()
+        const text = el.value || el.innerText || el.textContent || ''
+        if (r.width > 80 && text.trim().length > 0) return el
+      }
+    } catch {}
+  }
+
+  // 2. Standard <textarea>
   for (const el of document.querySelectorAll('textarea')) {
     const r = el.getBoundingClientRect()
     if (r.width > 100 && r.top >= 0 && r.bottom <= window.innerHeight + 200) return el
   }
-  // Fall back to contenteditable
+
+  // 3. contenteditable
   for (const el of document.querySelectorAll('[contenteditable="true"],[contenteditable=""]')) {
     const r = el.getBoundingClientRect()
     if (r.width > 100 && r.height > 20 && r.top >= 0 && r.bottom <= window.innerHeight + 200) return el
   }
+
+  // 4. Large visible input with meaningful text
+  for (const el of document.querySelectorAll('input[type=text],input:not([type])')) {
+    const val = el.value || ''
+    if (val.length > 15) return el
+  }
+
   return null
 }
 
@@ -208,13 +236,21 @@ function extractData() {
   const videoSrc = bestVideo ? (bestVideo.el.currentSrc || bestVideo.el.src || '') : ''
   const duration = bestVideo && isFinite(bestVideo.el.duration) ? Math.round(bestVideo.el.duration) : 0
 
-  // Prompt text
+  // Prompt text — try input fields, then look for prompt displayed near video
   let prompt = ''
   const textarea = findMainTextarea()
   if (textarea) prompt = (textarea.value || textarea.innerText || textarea.textContent || '').trim()
+
+  // If still nothing, look for prompt text displayed as static text near the video area
   if (!prompt) {
-    for (const el of document.querySelectorAll('input[type=text]')) {
-      if (el.value && el.value.length > 20) { prompt = el.value.trim(); break }
+    const candidates = [
+      ...document.querySelectorAll('[class*="prompt" i]'),
+      ...document.querySelectorAll('[data-prompt]'),
+      ...document.querySelectorAll('[class*="description" i]'),
+    ]
+    for (const el of candidates) {
+      const t = (el.getAttribute('data-prompt') || el.innerText || el.textContent || '').trim()
+      if (t.length > 20 && t.length < 2000) { prompt = t; break }
     }
   }
 
