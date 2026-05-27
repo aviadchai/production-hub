@@ -62,7 +62,7 @@ export default function LoginPage() {
               <Film className="h-5 w-5 text-background" />
             </div>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Production Hub</h1>
+          <h1 className="text-xl font-bold tracking-tight">Prompt Manager</h1>
           <p className="text-xs text-muted-foreground">For team members only</p>
         </div>
 

@@ -3,7 +3,7 @@
 import { GripVertical } from 'lucide-react'
 import { toast } from 'sonner'
 
-const PRODUCTION_HUB_URL = 'https://production-hub-alpha.vercel.app'
+const PRODUCTION_HUB_URL = 'https://production-hub-omega-five.vercel.app'
 
 const bookmarkletCode = `javascript:(function(){
   if(!location.href.includes('toolkit.artlist.io')){
@@ -47,7 +47,7 @@ export function BookmarkletButton() {
           draggable
         >
           <span>🎬</span>
-          Production Hub
+          Prompt Manager
         </a>
         <p className="text-xs text-muted-foreground">← Drag this to your bookmarks bar</p>
       </div>

@@ -5,7 +5,8 @@ import { AssignMembersButton } from '@/components/projects/AssignMembersButton'
 import { ProjectReferences } from '@/components/projects/ProjectReferences'
 import { NewPromptModal } from '@/components/prompts/NewPromptModal'
 import { deptColors } from '@/lib/mock-data'
-import { db, CURRENT_USER_EMAIL } from '@/lib/supabase'
+import { db } from '@/lib/supabase'
+import { getSession } from '@/lib/auth'
 import { notFound } from 'next/navigation'
 import { Layers, Film, Plus } from 'lucide-react'
 import { DeleteProjectButton } from '@/components/projects/DeleteProjectButton'
@@ -22,9 +23,13 @@ export default async function ProjectPage({ params }: Props) {
   let prompts: {
     id: string; scene_id: string; prompt_text: string; notes: string | null
     ai_model: string; artlist_video_url: string | null; artlist_video_src: string | null
+    asset_width: number | null; asset_height: number | null; asset_ratio: string | null
+    asset_fps: number | null; asset_duration: number | null; asset_title: string | null
     created_by: string | null; created_at: string
     is_favorited: boolean; comment_count: number; created_by_name: string
   }[] = []
+
+  const session = await getSession()
 
   try {
     const supabase = db()
@@ -40,7 +45,7 @@ export default async function ProjectPage({ params }: Props) {
     if (sceneIds.length > 0) {
       const [{ data: rawPrompts }, { data: favs }] = await Promise.all([
         supabase.from('prompts').select('*').in('scene_id', sceneIds).order('created_at'),
-        supabase.from('favorites').select('prompt_id').eq('user_id', CURRENT_USER_EMAIL),
+        session ? supabase.from('favorites').select('prompt_id').eq('user_id', session.id) : Promise.resolve({ data: [] }),
       ])
 
       const promptIds = (rawPrompts ?? []).map((p) => p.id)
@@ -48,14 +53,25 @@ export default async function ProjectPage({ params }: Props) {
         ? await supabase.from('comments').select('prompt_id').in('prompt_id', promptIds)
         : { data: [] }
 
-      const favSet = new Set((favs ?? []).map((f) => f.prompt_id))
+      // Resolve display names for prompt creators
+      const creatorIds = [...new Set((rawPrompts ?? []).map((p) => p.created_by).filter(Boolean))]
+      const { data: userRows } = creatorIds.length > 0
+        ? await supabase.from('users').select('id, display_name').in('id', creatorIds)
+        : { data: [] }
+      const userMap: Record<string, string> = {}
+      for (const u of userRows ?? []) userMap[u.id] = u.display_name
+
+      const favSet = new Set((favs ?? []).map((f: { prompt_id: string }) => f.prompt_id))
       const commentCountMap: Record<string, number> = {}
       for (const c of commentRows ?? []) {
         commentCountMap[c.prompt_id] = (commentCountMap[c.prompt_id] || 0) + 1
       }
 
       prompts = (rawPrompts ?? []).map((p) => ({
-        ...p, is_favorited: favSet.has(p.id), comment_count: commentCountMap[p.id] || 0, created_by_name: p.created_by || 'Unknown',
+        ...p,
+        is_favorited: favSet.has(p.id),
+        comment_count: commentCountMap[p.id] || 0,
+        created_by_name: userMap[p.created_by] || p.created_by || 'Unknown',
       }))
     }
   } catch {

@@ -5,8 +5,12 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, FolderOpen, Heart, Settings, Users, Film, Download, BookMarked, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
 
 interface Me { displayName: string; username: string; isAdmin: boolean }
+
+// Keep in sync with chrome-extension/manifest.json version
+const LATEST_EXT_VERSION = '2.4.0'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -25,6 +29,33 @@ export function Sidebar() {
     fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.authenticated) setMe(d) }).catch(() => {})
   }, [])
 
+  // Check if the Chrome extension needs updating
+  useEffect(() => {
+    const dismissed = sessionStorage.getItem('pm-ext-update-dismissed')
+    if (dismissed === LATEST_EXT_VERSION) return
+
+    // Give content.js a moment to inject the attribute
+    const timer = setTimeout(() => {
+      const installedVer = document.documentElement.getAttribute('data-pm-ext-version')
+      if (installedVer && installedVer !== LATEST_EXT_VERSION) {
+        toast.warning(
+          `Extension update available (v${LATEST_EXT_VERSION})`,
+          {
+            description: `You have v${installedVer}. Download the new version from the Artlist Shortcut page.`,
+            duration: 10000,
+            action: {
+              label: 'Update',
+              onClick: () => router.push('/install'),
+            },
+            onDismiss: () => sessionStorage.setItem('pm-ext-update-dismissed', LATEST_EXT_VERSION),
+          }
+        )
+      }
+    }, 3000)
+    return () => clearTimeout(timer)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
@@ -36,7 +67,7 @@ export function Sidebar() {
       <div className="h-14 flex items-center px-4 border-b border-border">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Film className="h-5 w-5 text-foreground shrink-0" />
-          <span className="font-bold text-sm tracking-tight">Production Hub</span>
+          <span className="font-bold text-sm tracking-tight">Prompt Manager</span>
         </div>
         <span className="text-[10px] text-muted-foreground/50 font-mono shrink-0">v2.0</span>
       </div>

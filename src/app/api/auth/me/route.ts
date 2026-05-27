@@ -11,8 +11,16 @@ const CORS = {
 export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ authenticated: false }, { status: 401, headers: CORS })
-  const { data } = await db().from('users').select('department_id').eq('id', session.id).single()
-  return NextResponse.json({ authenticated: true, ...session, departmentId: data?.department_id ?? null }, { headers: CORS })
+  // Fetch live DB values so changes (e.g. is_admin) take effect immediately without re-login
+  const { data } = await db().from('users').select('department_id, is_admin, display_name').eq('id', session.id).single()
+  return NextResponse.json({
+    authenticated: true,
+    ...session,
+    // Override JWT values with fresh DB values
+    isAdmin: data?.is_admin ?? session.isAdmin,
+    displayName: data?.display_name ?? session.displayName,
+    departmentId: data?.department_id ?? null,
+  }, { headers: CORS })
 }
 
 export async function PATCH(req: Request) {

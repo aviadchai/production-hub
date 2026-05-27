@@ -1,23 +1,75 @@
 // Injected into toolkit.artlist.io
 
 const HUB_URL = 'https://production-hub-omega-five.vercel.app'
+const EXTENSION_VERSION = '2.4.0'
 let projects = []
 let savedPrompts = []
 let isAuthenticated = false
 
-console.log('[Production Hub] content script loaded on', location.href)
+console.log('[Prompt Manager] content script loaded on', location.href, '| version', EXTENSION_VERSION)
+// Let the web app detect which extension version is installed
+document.documentElement.setAttribute('data-pm-ext-version', EXTENSION_VERSION)
+
+// ── Version check — show banner if outdated ───────────────────────────────────
+async function checkForUpdate() {
+  try {
+    const res = await fetch(`${HUB_URL}/api/extension/version`, { credentials: 'include' })
+    if (!res.ok) return
+    const data = await res.json()
+    if (data.version && data.version !== EXTENSION_VERSION) {
+      showUpdateBanner(data.version, data.downloadUrl)
+    }
+  } catch(e) {
+    console.log('[Prompt Manager] version check failed (non-critical):', e.message)
+  }
+}
+
+function showUpdateBanner(newVersion, downloadUrl) {
+  if (document.getElementById('pm-update-banner')) return
+  const banner = document.createElement('div')
+  banner.id = 'pm-update-banner'
+  banner.style.cssText = `
+    position:fixed;top:0;left:0;right:0;z-index:2147483647;
+    background:linear-gradient(90deg,#1a1a2e,#16213e);
+    color:#fff;padding:10px 20px;
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    font-size:13px;font-weight:500;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    box-shadow:0 2px 20px rgba(0,0,0,0.5);
+  `
+  banner.innerHTML = `
+    <span style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">🔄</span>
+      <span>A new version of <strong>Prompt Manager extension</strong> is available (v${esc(newVersion)}).
+        Your version is v${EXTENSION_VERSION}.</span>
+    </span>
+    <span style="display:flex;align-items:center;gap:10px;shrink:0">
+      <a href="${esc(downloadUrl)}" target="_blank"
+         style="background:#fff;color:#000;text-decoration:none;border-radius:6px;padding:5px 14px;font-size:12px;font-weight:700;white-space:nowrap">
+        Update →
+      </a>
+      <button id="pm-banner-close"
+              style="background:none;border:none;color:#888;cursor:pointer;font-size:20px;line-height:1;padding:0 4px">
+        ×
+      </button>
+    </span>
+  `
+  document.body.appendChild(banner)
+  document.getElementById('pm-banner-close').addEventListener('click', () => banner.remove())
+}
 
 async function initExtension() {
   // Step 1: auth check — isolated so data-load errors don't reset auth state
   try {
-    console.log('[Production Hub] checking auth...')
+    console.log('[Prompt Manager] checking auth...')
     const res = await fetch(`${HUB_URL}/api/auth/me`, { credentials: 'include' })
-    console.log('[Production Hub] auth response status:', res.status)
-    if (!res.ok) { isAuthenticated = false; console.log('[Production Hub] not authenticated'); return }
+    console.log('[Prompt Manager] auth response status:', res.status)
+    if (!res.ok) { isAuthenticated = false; console.log('[Prompt Manager] not authenticated'); return }
     isAuthenticated = true
-    console.log('[Production Hub] authenticated ✓')
+    console.log('[Prompt Manager] authenticated ✓')
   } catch(e) {
-    console.log('[Production Hub] auth fetch failed:', e.message)
+    console.log('[Prompt Manager] auth fetch failed:', e.message)
     isAuthenticated = false
     return
   }
@@ -30,13 +82,15 @@ async function initExtension() {
     ])
     if (projRes.ok) projects = await projRes.json()
     if (promptRes.ok) savedPrompts = await promptRes.json()
-    console.log('[Production Hub] loaded', projects.length, 'projects,', savedPrompts.length, 'prompts')
+    console.log('[Prompt Manager] loaded', projects.length, 'projects,', savedPrompts.length, 'prompts')
   } catch(e) {
-    console.log('[Production Hub] data fetch failed (non-critical):', e.message)
+    console.log('[Prompt Manager] data fetch failed (non-critical):', e.message)
   }
 }
 
 initExtension()
+// Check for updates in parallel (non-blocking)
+checkForUpdate()
 
 // ── Re-check auth + reload data (called after login popup closes) ─────────────
 async function recheckAndReload() {
@@ -50,10 +104,10 @@ async function recheckAndReload() {
     ]).catch(() => [null, null])
     if (projRes?.ok) projects = await projRes.json()
     if (promptRes?.ok) savedPrompts = await promptRes.json()
-    console.log('[Production Hub] re-auth OK, projects:', projects.length)
+    console.log('[Prompt Manager] re-auth OK, projects:', projects.length)
     return true
   } catch(e) {
-    console.log('[Production Hub] re-auth failed:', e.message)
+    console.log('[Prompt Manager] re-auth failed:', e.message)
     isAuthenticated = false
     return false
   }
@@ -72,9 +126,9 @@ function openLoginAndWait(onSuccess) {
   }, 800)
 }
 
-// ── Floating button: Save to Hub (hover over video) ──────────────────────────
+// ── Floating button: Save to Prompt Manager (hover over video) ───────────────
 const saveBtn = document.createElement('button')
-saveBtn.textContent = '🎬 Save to Hub'
+saveBtn.textContent = '🎬 Save to Prompt Manager'
 saveBtn.style.cssText = `
   position:fixed;z-index:2147483647;
   background:rgba(10,10,10,0.92);color:#fff;
@@ -108,10 +162,10 @@ setInterval(() => {
   const overVideo = findVideoUnderMouse()
   if (overVideo) {
     const { rect } = overVideo
-    saveBtn.textContent = isAuthenticated ? '🎬 Save to Hub' : '🎬 Hub — Sign in first'
+    saveBtn.textContent = isAuthenticated ? '🎬 Save to Prompt Manager' : '🎬 Sign in to Prompt Manager'
     saveBtn.style.opacity = isAuthenticated ? '1' : '0.6'
     saveBtn.style.top  = (rect.top + 12) + 'px'
-    saveBtn.style.left = (rect.right - 200) + 'px'
+    saveBtn.style.left = (rect.right - 220) + 'px'
     if (!saveBtnVisible) { saveBtn.style.display = 'block'; saveBtnVisible = true }
   } else if (saveBtnVisible) {
     saveBtn.style.display = 'none'; saveBtnVisible = false
@@ -129,7 +183,7 @@ saveBtn.addEventListener('click', e => {
   recheckAndReload().then(() => showSavePanel())
 })
 
-// ── Floating button: Prompt Saver (near textarea) ────────────────────────────
+// ── Floating button: Insert Prompt (near textarea) ───────────────────────────
 const promptSaverBtn = document.createElement('button')
 promptSaverBtn.textContent = '⚡ Insert Prompt'
 promptSaverBtn.style.cssText = `
@@ -265,7 +319,6 @@ function extractData() {
   let fps = ''
   const fpsMatch = document.body.innerText.match(/\b(\d{2,3})\s*fps\b/i)
   if (fpsMatch) fps = fpsMatch[1]
-  // Also try URL params
   if (!fps && p.get('assetFps')) fps = p.get('assetFps')
   if (!fps && p.get('fps'))      fps = p.get('fps')
 
@@ -277,7 +330,7 @@ function extractData() {
     assetTitle = document.title.replace(/\s*[|–\-].*$/, '').trim()
   }
 
-  // Dimensions — prefer URL params (Artlist passes these as assetWidth/assetHeight)
+  // Dimensions — prefer URL params
   const width  = p.get('assetWidth')  || p.get('width')  || ''
   const height = p.get('assetHeight') || p.get('height') || ''
   const ratio  = p.get('assetAspectRatio') || p.get('ratio') || ''
@@ -286,7 +339,7 @@ function extractData() {
            assetId: p.get('assetId') || '', width, height, ratio }
 }
 
-// ── Save to Hub panel ─────────────────────────────────────────────────────────
+// ── Save panel ────────────────────────────────────────────────────────────────
 let activePanel = null
 
 function showSavePanel() {
@@ -314,7 +367,7 @@ function showSavePanel() {
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
       <div style="display:flex;align-items:center;gap:9px">
         <span style="font-size:18px">🎬</span>
-        <span style="font-weight:700;font-size:14px">Save to Hub</span>
+        <span style="font-weight:700;font-size:14px">Save to Prompt Manager</span>
       </div>
       <button id="ph-close" style="background:none;border:none;color:#555;cursor:pointer;font-size:22px;line-height:1;padding:0 4px">×</button>
     </div>
@@ -333,25 +386,25 @@ function showSavePanel() {
       </div>
     </div>
     ${metaTags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${metaTags.map(t => `<span style="background:#222;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 8px;font-size:10px;font-family:monospace;color:#aaa">${esc(t)}</span>`).join('')}</div>` : ''}
-    ${data.assetTitle ? `<div style="font-size:11px;color:#aaa;margin-bottom:10px;truncate">${esc(data.assetTitle.slice(0,60))}</div>` : ''}
+    ${data.assetTitle ? `<div style="font-size:11px;color:#aaa;margin-bottom:10px">${esc(data.assetTitle.slice(0,60))}</div>` : ''}
     ${hasPrompt ? `<div style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:#888;max-height:60px;overflow:hidden;line-height:1.5">${esc(data.prompt.slice(0,180))}${data.prompt.length > 180 ? '…' : ''}</div>` : ''}
     ${noProjects ? `
     <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
       <div style="font-size:22px;margin-bottom:8px">📁</div>
-      <div style="font-size:12px;color:#888;margin-bottom:12px">No projects found.<br>Open Hub to browse or create one.</div>
-      <a href="${HUB_URL}/projects" target="_blank" style="display:inline-block;background:#fff;color:#000;text-decoration:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700">Open Hub →</a>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">No projects found.<br>Open Prompt Manager to browse or create one.</div>
+      <a href="${HUB_URL}/projects" target="_blank" style="display:inline-block;background:#fff;color:#000;text-decoration:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700">Open Prompt Manager →</a>
     </div>
     ` : `
     <div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
         <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.08em">Project</label>
-        <a id="ph-open" href="${HUB_URL}/projects" target="_blank" style="font-size:10px;color:#555;text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Open in Hub ↗</a>
+        <a id="ph-open" href="${HUB_URL}/projects" target="_blank" style="font-size:10px;color:#555;text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Open in Prompt Manager ↗</a>
       </div>
       <select id="ph-project" style="width:100%;background:#111;border:1px solid rgba(255,255,255,0.12);border-radius:9px;padding:9px 11px;color:#fff;font-size:13px;outline:none;cursor:pointer;appearance:auto">
         <option value="">— Select project —</option>${opts}
       </select>
     </div>
-    <button id="ph-save" style="width:100%;background:#fff;color:#000;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">Save to Hub →</button>
+    <button id="ph-save" style="width:100%;background:#fff;color:#000;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">Save to Prompt Manager →</button>
     `}
   `
 
@@ -362,40 +415,42 @@ function showSavePanel() {
   panel.querySelector('#ph-close').addEventListener('click', closeAll)
   overlay.addEventListener('click', closeAll)
 
-  panel.querySelector('#ph-project').addEventListener('change', (e) => {
-    const id = e.target.value
-    const link = panel.querySelector('#ph-open')
-    link.href = id ? `${HUB_URL}/projects/${id}` : `${HUB_URL}/projects`
-    link.style.color = id ? '#4ade80' : '#555'
-  })
-
-  panel.querySelector('#ph-save').addEventListener('click', () => {
-    const projectId = panel.querySelector('#ph-project').value
-    if (!projectId) { panel.querySelector('#ph-project').style.borderColor = 'rgba(239,68,68,0.6)'; return }
-
-    const saveEl = panel.querySelector('#ph-save')
-    saveEl.textContent = 'Saving…'; saveEl.style.opacity = '0.6'; saveEl.disabled = true
-
-    const qs = new URLSearchParams({
-      artlistUrl: data.url, assetId: data.assetId,
-      width: data.width, height: data.height, ratio: data.ratio,
-      model: data.model, prompt: data.prompt.slice(0, 800),
-      projectId, autoSave: '1',
+  if (!noProjects) {
+    panel.querySelector('#ph-project').addEventListener('change', (e) => {
+      const id = e.target.value
+      const link = panel.querySelector('#ph-open')
+      link.href = id ? `${HUB_URL}/projects/${id}` : `${HUB_URL}/projects`
+      link.style.color = id ? '#4ade80' : '#555'
     })
-    if (data.videoSrc)    qs.set('videoSrc',    data.videoSrc)
-    if (data.fps)         qs.set('fps',         data.fps)
-    if (data.duration)    qs.set('duration',    String(data.duration))
-    if (data.assetTitle)  qs.set('assetTitle',  data.assetTitle.slice(0, 120))
-    window.open(`${HUB_URL}/add?${qs}`, '_blank', 'width=480,height=320')
 
-    setTimeout(() => {
-      saveEl.textContent = '✓ Saved!'; saveEl.style.background = '#4ade80'; saveEl.style.opacity = '1'
-      setTimeout(closeAll, 900)
-    }, 600)
-  })
+    panel.querySelector('#ph-save').addEventListener('click', () => {
+      const projectId = panel.querySelector('#ph-project').value
+      if (!projectId) { panel.querySelector('#ph-project').style.borderColor = 'rgba(239,68,68,0.6)'; return }
+
+      const saveEl = panel.querySelector('#ph-save')
+      saveEl.textContent = 'Saving…'; saveEl.style.opacity = '0.6'; saveEl.disabled = true
+
+      const qs = new URLSearchParams({
+        artlistUrl: data.url, assetId: data.assetId,
+        width: data.width, height: data.height, ratio: data.ratio,
+        model: data.model, prompt: data.prompt.slice(0, 800),
+        projectId, autoSave: '1',
+      })
+      if (data.videoSrc)    qs.set('videoSrc',    data.videoSrc)
+      if (data.fps)         qs.set('fps',         data.fps)
+      if (data.duration)    qs.set('duration',    String(data.duration))
+      if (data.assetTitle)  qs.set('assetTitle',  data.assetTitle.slice(0, 120))
+      window.open(`${HUB_URL}/add?${qs}`, '_blank', 'width=480,height=320')
+
+      setTimeout(() => {
+        saveEl.textContent = '✓ Saved!'; saveEl.style.background = '#4ade80'; saveEl.style.opacity = '1'
+        setTimeout(closeAll, 900)
+      }, 600)
+    })
+  }
 }
 
-// ── Prompt Saver panel ────────────────────────────────────────────────────────
+// ── Insert Prompt panel ───────────────────────────────────────────────────────
 let activeSaverPanel = null
 
 function showSaverPanel() {
@@ -427,11 +482,11 @@ function renderSaverPanel() {
       <button id="ps-close" style="background:none;border:none;color:#555;cursor:pointer;font-size:22px;line-height:1;padding:0 4px">×</button>
     </div>
     <input id="ps-search" placeholder="Search prompts..." style="width:100%;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:12px;outline:none;margin-bottom:12px;box-sizing:border-box" />
-    <div id="ps-list" style="max-height:320px;overflow-y:auto;space-y:4px">
+    <div id="ps-list" style="max-height:320px;overflow-y:auto">
       ${renderPromptList(savedPrompts)}
     </div>
     <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);font-size:10px;color:#555;text-align:center">
-      Manage prompts at <a href="${HUB_URL}/saved-prompts" target="_blank" style="color:#888;text-decoration:underline">Production Hub</a>
+      Manage prompts at <a href="${HUB_URL}/saved-prompts" target="_blank" style="color:#888;text-decoration:underline">Prompt Manager ↗</a>
     </div>
   `
 
@@ -454,7 +509,7 @@ function renderSaverPanel() {
 }
 
 function renderPromptList(list) {
-  if (!list.length) return `<div style="text-align:center;padding:24px 0;color:#555;font-size:12px">No saved prompts yet.<br><a href="${HUB_URL}/saved-prompts" target="_blank" style="color:#888;text-decoration:underline;margin-top:8px;display:inline-block">Add prompts at Production Hub ↗</a></div>`
+  if (!list.length) return `<div style="text-align:center;padding:24px 0;color:#555;font-size:12px">No saved prompts yet.<br><a href="${HUB_URL}/saved-prompts" target="_blank" style="color:#888;text-decoration:underline;margin-top:8px;display:inline-block">Add prompts at Prompt Manager ↗</a></div>`
   return list.map(p => `
     <div data-prompt="${esc(p.prompt_text)}" style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
       <div style="font-size:12px;font-weight:600;color:#ddd;margin-bottom:4px">${esc(p.title)}</div>
@@ -488,7 +543,6 @@ function insertPromptIntoTextarea(text) {
       el.dispatchEvent(new Event('input', { bubbles: true }))
     }
   } else {
-    // contenteditable
     el.focus()
     document.execCommand('selectAll', false, null)
     document.execCommand('insertText', false, text)

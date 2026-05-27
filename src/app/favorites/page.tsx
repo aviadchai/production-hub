@@ -2,21 +2,28 @@ export const dynamic = 'force-dynamic'
 
 import { AppLayout } from '@/components/layout/AppLayout'
 import { PromptCard } from '@/components/prompts/PromptCard'
-import { db, CURRENT_USER_EMAIL } from '@/lib/supabase'
+import { db } from '@/lib/supabase'
+import { getSession } from '@/lib/auth'
 
 export default async function FavoritesPage() {
   type PromptRow = {
     id: string; scene_id: string; prompt_text: string; notes: string | null
     ai_model: string; artlist_video_url: string | null; artlist_video_src: string | null
+    asset_width: number | null; asset_height: number | null; asset_ratio: string | null
+    asset_fps: number | null; asset_duration: number | null; asset_title: string | null
     created_by: string | null; created_at: string
     is_favorited: boolean; comment_count: number; created_by_name: string
   }
 
+  const session = await getSession()
   let prompts: PromptRow[] = []
 
   try {
     const supabase = db()
-    const { data: favs } = await supabase.from('favorites').select('prompt_id').eq('user_id', CURRENT_USER_EMAIL)
+    const { data: favs } = session
+      ? await supabase.from('favorites').select('prompt_id').eq('user_id', session.id)
+      : { data: [] }
+
     const promptIds = (favs ?? []).map((f) => f.prompt_id)
 
     if (promptIds.length > 0) {
@@ -25,13 +32,24 @@ export default async function FavoritesPage() {
         supabase.from('comments').select('prompt_id').in('prompt_id', promptIds),
       ])
 
+      // Resolve creator display names
+      const creatorIds = [...new Set((rawPrompts ?? []).map((p) => p.created_by).filter(Boolean))]
+      const { data: userRows } = creatorIds.length > 0
+        ? await supabase.from('users').select('id, display_name').in('id', creatorIds)
+        : { data: [] }
+      const userMap: Record<string, string> = {}
+      for (const u of userRows ?? []) userMap[u.id] = u.display_name
+
       const commentCountMap: Record<string, number> = {}
       for (const c of commentRows ?? []) {
         commentCountMap[c.prompt_id] = (commentCountMap[c.prompt_id] || 0) + 1
       }
 
       prompts = (rawPrompts ?? []).map((p) => ({
-        ...p, is_favorited: true, comment_count: commentCountMap[p.id] || 0, created_by_name: p.created_by || 'Unknown',
+        ...p,
+        is_favorited: true,
+        comment_count: commentCountMap[p.id] || 0,
+        created_by_name: userMap[p.created_by] || p.created_by || 'Unknown',
       }))
     }
   } catch {

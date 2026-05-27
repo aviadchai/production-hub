@@ -11,8 +11,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'Production Hub',
-  description: 'Internal project hub for the video team',
+  title: 'Prompt Manager',
+  description: 'AI prompt & video manager for the production team',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

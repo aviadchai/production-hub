@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Production Hub",
+  "name": "Prompt Manager",
   "version": "2.4.0",
-  "description": "Save Artlist AI videos directly to Production Hub projects",
+  "description": "Save Artlist AI videos and prompts to Prompt Manager",
   "background": {
     "service_worker": "background.js"
   },

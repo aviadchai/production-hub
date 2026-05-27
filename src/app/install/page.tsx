@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { Download, MousePointer, Zap, Check, Copy, ExternalLink, Film } from 'lucide-react'
 
 const VERSION = 'v2.4'
-const ZIP = `/production-hub-extension-${VERSION}.zip`
+const ZIP = `/prompt-manager-extension-${VERSION}.zip`
 
 export default function InstallPage() {
   const [step, setStep] = useState(0)
@@ -38,12 +38,12 @@ export default function InstallPage() {
           <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
             <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 text-xl">🎬</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">Production Hub Extension</p>
+              <p className="text-sm font-semibold">Prompt Manager Extension</p>
               <p className="text-xs text-muted-foreground">Chrome Extension · {VERSION}</p>
             </div>
             <a
               href={ZIP}
-              download={`production-hub-extension-${VERSION}.zip`}
+              download={`prompt-manager-extension-${VERSION}.zip`}
               onClick={() => setTimeout(() => setStep(s => Math.max(s, 1)), 1500)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors shrink-0"
             >
@@ -53,7 +53,7 @@ export default function InstallPage() {
           </div>
           {step >= 1 && (
             <p className="text-xs text-emerald-400 mt-2">
-              File saved as <span className="font-mono">production-hub-extension-{VERSION}.zip</span> — unzip it first.
+              File saved as <span className="font-mono">prompt-manager-extension-{VERSION}.zip</span> — unzip it first.
             </p>
           )}
         </Step>
