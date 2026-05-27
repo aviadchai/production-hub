@@ -20,15 +20,15 @@ export function ChromeExtensionInstall() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">Production Hub Extension</p>
-          <p className="text-xs text-muted-foreground">Chrome Extension · v2.1</p>
+          <p className="text-xs text-muted-foreground">Chrome Extension · v2.2</p>
         </div>
         <a
-          href="/production-hub-extension-v2.1.zip"
-          download="production-hub-extension-v2.1.zip"
+          href="/production-hub-extension-v2.2.zip"
+          download="production-hub-extension-v2.2.zip"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
         >
           <Download className="h-3 w-3" />
-          Download v2.1
+          Download v2.2
         </a>
       </div>
 

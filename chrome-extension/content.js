@@ -38,6 +38,40 @@ async function initExtension() {
 
 initExtension()
 
+// ── Re-check auth + reload data (called after login popup closes) ─────────────
+async function recheckAndReload() {
+  try {
+    const res = await fetch(`${HUB_URL}/api/auth/me`, { credentials: 'include' })
+    if (!res.ok) { isAuthenticated = false; return false }
+    isAuthenticated = true
+    const [projRes, promptRes] = await Promise.all([
+      fetch(`${HUB_URL}/api/extension/projects`, { credentials: 'include' }),
+      fetch(`${HUB_URL}/api/saved-prompts`, { credentials: 'include' }),
+    ]).catch(() => [null, null])
+    if (projRes?.ok) projects = await projRes.json()
+    if (promptRes?.ok) savedPrompts = await promptRes.json()
+    console.log('[Production Hub] re-auth OK, projects:', projects.length)
+    return true
+  } catch(e) {
+    console.log('[Production Hub] re-auth failed:', e.message)
+    isAuthenticated = false
+    return false
+  }
+}
+
+// Open login popup and wait for it to close, then re-check auth
+function openLoginAndWait(onSuccess) {
+  const popup = window.open(`${HUB_URL}/login`, '_blank', 'width=440,height=540,left=200,top=100')
+  if (!popup) { window.open(`${HUB_URL}/login`, '_blank'); return }
+  const timer = setInterval(async () => {
+    if (popup.closed) {
+      clearInterval(timer)
+      const ok = await recheckAndReload()
+      if (ok && onSuccess) onSuccess()
+    }
+  }, 800)
+}
+
 // ── Floating button: Save to Hub (hover over video) ──────────────────────────
 const saveBtn = document.createElement('button')
 saveBtn.textContent = '🎬 Save to Hub'
@@ -88,10 +122,11 @@ saveBtn.addEventListener('click', e => {
   e.preventDefault(); e.stopPropagation()
   saveBtn.style.display = 'none'; saveBtnVisible = false
   if (!isAuthenticated) {
-    window.open(`${HUB_URL}/login`, '_blank', 'width=420,height=520')
+    openLoginAndWait(() => showSavePanel())
     return
   }
-  showSavePanel()
+  // Refresh projects in background before showing panel
+  recheckAndReload().then(() => showSavePanel())
 })
 
 // ── Floating button: Prompt Saver (near textarea) ────────────────────────────
@@ -287,7 +322,7 @@ function showSaverPanel() {
   if (activePanel || activeSaverPanel) { closeAll(); return }
 
   if (!isAuthenticated) {
-    window.open(`${HUB_URL}/login`, '_blank', 'width=420,height=520')
+    openLoginAndWait(() => showSaverPanel())
     return
   }
 

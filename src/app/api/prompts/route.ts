@@ -9,8 +9,8 @@ export async function POST(req: Request) {
   const body = await req.json()
   const { projectId, sceneId, newSceneTitle, prompt, model, notes, artlistUrl, videoSrc, width, height, ratio } = body
 
-  if (!projectId || !prompt?.trim()) {
-    return NextResponse.json({ error: 'projectId and prompt are required' }, { status: 400 })
+  if (!projectId) {
+    return NextResponse.json({ error: 'projectId is required' }, { status: 400 })
   }
 
   const supabase = db()
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     .from('prompts')
     .insert({
       scene_id: resolvedSceneId,
-      prompt_text: prompt.trim(),
+      prompt_text: prompt?.trim() || '',
       ai_model: model || 'other',
       notes: notes?.trim() || null,
       artlist_video_url: artlistUrl || null,
