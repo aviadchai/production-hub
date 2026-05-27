@@ -29,10 +29,13 @@ function AddForm() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
-  const artlistUrl = params.get('artlistUrl') || ''
-  const videoSrc = params.get('videoSrc') || ''
-  const width = params.get('width') || ''
-  const height = params.get('height') || ''
+  const artlistUrl  = params.get('artlistUrl')  || ''
+  const videoSrc    = params.get('videoSrc')    || ''
+  const width       = params.get('width')       || ''
+  const height      = params.get('height')      || ''
+  const fps         = params.get('fps')         || ''
+  const duration    = params.get('duration')    || ''
+  const assetTitle  = params.get('assetTitle')  || ''
 
   // Auto-save flow when opened from extension
   useEffect(() => {
@@ -45,13 +48,11 @@ function AddForm() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         projectId,
-        prompt: params.get('prompt') || '',
-        model: params.get('model') || 'other',
-        artlistUrl,
-        videoSrc,
-        width,
-        height,
-        ratio: params.get('ratio') || '',
+        prompt:     params.get('prompt')     || '',
+        model:      params.get('model')      || 'other',
+        artlistUrl, videoSrc, width, height,
+        ratio:      params.get('ratio')      || '',
+        fps, duration, assetTitle,
       }),
     })
       .then(async (r) => {
@@ -106,7 +107,7 @@ function AddForm() {
     const res = await fetch('/api/prompts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectId, prompt, model, artlistUrl, videoSrc, width, height, ratio: params.get('ratio') || '' }),
+      body: JSON.stringify({ projectId, prompt, model, artlistUrl, videoSrc, width, height, ratio: params.get('ratio') || '', fps, duration, assetTitle }),
     })
 
     if (!res.ok) {

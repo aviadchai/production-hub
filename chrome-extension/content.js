@@ -195,6 +195,7 @@ function extractData() {
   const url = window.location.href
   const p = new URLSearchParams(window.location.search)
 
+  // Best video element
   let bestVideo = null
   for (const v of document.querySelectorAll('video')) {
     const r = v.getBoundingClientRect()
@@ -205,7 +206,9 @@ function extractData() {
     }
   }
   const videoSrc = bestVideo ? (bestVideo.el.currentSrc || bestVideo.el.src || '') : ''
+  const duration = bestVideo && isFinite(bestVideo.el.duration) ? Math.round(bestVideo.el.duration) : 0
 
+  // Prompt text
   let prompt = ''
   const textarea = findMainTextarea()
   if (textarea) prompt = (textarea.value || textarea.innerText || textarea.textContent || '').trim()
@@ -215,13 +218,36 @@ function extractData() {
     }
   }
 
-  const body = document.body.innerText.toLowerCase()
+  // AI model detection
+  const bodyText = document.body.innerText.toLowerCase()
   let model = 'other'
   for (const m of ['sora', 'runway', 'veo', 'kling']) {
-    if (body.includes(m)) { model = m; break }
+    if (bodyText.includes(m)) { model = m; break }
   }
 
-  return { url, videoSrc, prompt, model, assetId: p.get('assetId') || '', width: p.get('assetWidth') || '', height: p.get('assetHeight') || '', ratio: p.get('assetAspectRatio') || '' }
+  // FPS — look for "24 fps", "30fps", "60 fps" in page text
+  let fps = ''
+  const fpsMatch = document.body.innerText.match(/\b(\d{2,3})\s*fps\b/i)
+  if (fpsMatch) fps = fpsMatch[1]
+  // Also try URL params
+  if (!fps && p.get('assetFps')) fps = p.get('assetFps')
+  if (!fps && p.get('fps'))      fps = p.get('fps')
+
+  // Asset title — try h1, then page <title>
+  let assetTitle = ''
+  const h1 = document.querySelector('h1')
+  if (h1?.innerText?.trim()) assetTitle = h1.innerText.trim()
+  if (!assetTitle && document.title) {
+    assetTitle = document.title.replace(/\s*[|–\-].*$/, '').trim()
+  }
+
+  // Dimensions — prefer URL params (Artlist passes these as assetWidth/assetHeight)
+  const width  = p.get('assetWidth')  || p.get('width')  || ''
+  const height = p.get('assetHeight') || p.get('height') || ''
+  const ratio  = p.get('assetAspectRatio') || p.get('ratio') || ''
+
+  return { url, videoSrc, prompt, model, duration, fps, assetTitle,
+           assetId: p.get('assetId') || '', width, height, ratio }
 }
 
 // ── Save to Hub panel ─────────────────────────────────────────────────────────
@@ -239,6 +265,14 @@ function showSavePanel() {
   const hasVideo = !!data.videoSrc
   const hasPrompt = !!data.prompt
   const noProjects = projects.length === 0
+
+  // Meta tags (dimensions, fps, duration)
+  const metaTags = [
+    data.width && data.height ? `${data.width}×${data.height}` : '',
+    data.ratio || '',
+    data.fps ? `${data.fps}fps` : '',
+    data.duration ? `${data.duration}s` : '',
+  ].filter(Boolean)
 
   panel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -262,6 +296,8 @@ function showSavePanel() {
         <div style="font-size:10px;color:${data.model !== 'other' ? '#4ade80' : '#555'}">Model</div>
       </div>
     </div>
+    ${metaTags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${metaTags.map(t => `<span style="background:#222;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 8px;font-size:10px;font-family:monospace;color:#aaa">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${data.assetTitle ? `<div style="font-size:11px;color:#aaa;margin-bottom:10px;truncate">${esc(data.assetTitle.slice(0,60))}</div>` : ''}
     ${hasPrompt ? `<div style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:#888;max-height:60px;overflow:hidden;line-height:1.5">${esc(data.prompt.slice(0,180))}${data.prompt.length > 180 ? '…' : ''}</div>` : ''}
     ${noProjects ? `
     <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
@@ -304,8 +340,16 @@ function showSavePanel() {
     const saveEl = panel.querySelector('#ph-save')
     saveEl.textContent = 'Saving…'; saveEl.style.opacity = '0.6'; saveEl.disabled = true
 
-    const qs = new URLSearchParams({ artlistUrl: data.url, assetId: data.assetId, width: data.width, height: data.height, ratio: data.ratio, model: data.model, prompt: data.prompt.slice(0, 800), projectId, autoSave: '1' })
-    if (data.videoSrc) qs.set('videoSrc', data.videoSrc)
+    const qs = new URLSearchParams({
+      artlistUrl: data.url, assetId: data.assetId,
+      width: data.width, height: data.height, ratio: data.ratio,
+      model: data.model, prompt: data.prompt.slice(0, 800),
+      projectId, autoSave: '1',
+    })
+    if (data.videoSrc)    qs.set('videoSrc',    data.videoSrc)
+    if (data.fps)         qs.set('fps',         data.fps)
+    if (data.duration)    qs.set('duration',    String(data.duration))
+    if (data.assetTitle)  qs.set('assetTitle',  data.assetTitle.slice(0, 120))
     window.open(`${HUB_URL}/add?${qs}`, '_blank', 'width=480,height=320')
 
     setTimeout(() => {

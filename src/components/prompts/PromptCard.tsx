@@ -17,6 +17,12 @@ interface Prompt {
   ai_model: string
   artlist_video_url: string | null
   artlist_video_src: string | null
+  asset_width: number | null
+  asset_height: number | null
+  asset_ratio: string | null
+  asset_fps: number | null
+  asset_duration: number | null
+  asset_title: string | null
   created_by_name: string
   created_at: string
   is_favorited: boolean
@@ -74,18 +80,44 @@ export function PromptCard({ prompt }: { prompt: Prompt }) {
       <div className="rounded-xl border border-border bg-card overflow-hidden hover:border-border/80 transition-colors">
         <div className="flex flex-col lg:flex-row">
           <div className="flex-1 p-5 space-y-3 min-w-0">
-            <div className="flex items-start gap-2">
+            <div className="flex items-start gap-2 flex-wrap">
               <Badge variant="outline" className="text-[10px] h-5 shrink-0">
                 {aiModelLabels[prompt.ai_model] || prompt.ai_model}
               </Badge>
+              {prompt.asset_width && prompt.asset_height && (
+                <Badge variant="secondary" className="text-[10px] h-5 font-mono shrink-0">
+                  {prompt.asset_width}×{prompt.asset_height}
+                </Badge>
+              )}
+              {prompt.asset_ratio && (
+                <Badge variant="secondary" className="text-[10px] h-5 font-mono shrink-0">
+                  {prompt.asset_ratio}
+                </Badge>
+              )}
+              {prompt.asset_fps && (
+                <Badge variant="secondary" className="text-[10px] h-5 font-mono shrink-0">
+                  {prompt.asset_fps}fps
+                </Badge>
+              )}
+              {prompt.asset_duration && (
+                <Badge variant="secondary" className="text-[10px] h-5 font-mono shrink-0">
+                  {prompt.asset_duration}s
+                </Badge>
+              )}
               <p className="text-xs text-muted-foreground">
                 {prompt.created_by_name} · {timeAgo(prompt.created_at)}
               </p>
             </div>
 
-            <p className="text-sm leading-relaxed text-foreground/90 font-mono">
-              {prompt.prompt_text}
-            </p>
+            {prompt.asset_title && (
+              <p className="text-xs font-medium text-foreground/70">{prompt.asset_title}</p>
+            )}
+
+            {prompt.prompt_text && (
+              <p className="text-sm leading-relaxed text-foreground/90 font-mono">
+                {prompt.prompt_text}
+              </p>
+            )}
 
             {prompt.notes && (
               <p className="text-xs text-muted-foreground border-l-2 border-border pl-3 leading-relaxed">
