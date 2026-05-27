@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Download, MousePointer, Zap, Check, Copy, ExternalLink, Film } from 'lucide-react'
 
-const VERSION = 'v2.0'
+const VERSION = 'v2.1'
 const ZIP = `/production-hub-extension-${VERSION}.zip`
 
 export default function InstallPage() {

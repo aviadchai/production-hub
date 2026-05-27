@@ -96,7 +96,7 @@ saveBtn.addEventListener('click', e => {
 
 // ── Floating button: Prompt Saver (near textarea) ────────────────────────────
 const promptSaverBtn = document.createElement('button')
-promptSaverBtn.textContent = '⚡ Insert Template'
+promptSaverBtn.textContent = '⚡ Insert Prompt'
 promptSaverBtn.style.cssText = `
   position:fixed;z-index:2147483647;
   background:rgba(10,10,10,0.92);color:#fff;
@@ -286,9 +286,16 @@ let activeSaverPanel = null
 function showSaverPanel() {
   if (activePanel || activeSaverPanel) { closeAll(); return }
 
-  // Refresh saved prompts
+  if (!isAuthenticated) {
+    window.open(`${HUB_URL}/login`, '_blank', 'width=420,height=520')
+    return
+  }
+
+  // Refresh saved prompts on every open
   fetch(`${HUB_URL}/api/saved-prompts`, { credentials: 'include' })
-    .then(r => r.json()).then(d => { savedPrompts = d; renderSaverPanel() }).catch(() => renderSaverPanel())
+    .then(r => { if (!r.ok) throw new Error('not ok'); return r.json() })
+    .then(d => { savedPrompts = Array.isArray(d) ? d : []; renderSaverPanel() })
+    .catch(() => renderSaverPanel())
 }
 
 function renderSaverPanel() {
@@ -299,8 +306,8 @@ function renderSaverPanel() {
   panel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:9px">
-        <span style="font-size:18px">📝</span>
-        <span style="font-weight:700;font-size:14px">Prompt Library</span>
+        <span style="font-size:18px">⚡</span>
+        <span style="font-weight:700;font-size:14px">Insert Prompt</span>
       </div>
       <button id="ps-close" style="background:none;border:none;color:#555;cursor:pointer;font-size:22px;line-height:1;padding:0 4px">×</button>
     </div>
@@ -332,7 +339,7 @@ function renderSaverPanel() {
 }
 
 function renderPromptList(list) {
-  if (!list.length) return `<div style="text-align:center;padding:24px 0;color:#555;font-size:12px">No saved prompts yet.<br>Add them at Production Hub.</div>`
+  if (!list.length) return `<div style="text-align:center;padding:24px 0;color:#555;font-size:12px">No saved prompts yet.<br><a href="${HUB_URL}/saved-prompts" target="_blank" style="color:#888;text-decoration:underline;margin-top:8px;display:inline-block">Add prompts at Production Hub ↗</a></div>`
   return list.map(p => `
     <div data-prompt="${esc(p.prompt_text)}" style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:border-color 0.15s" onmouseover="this.style.borderColor='rgba(255,255,255,0.2)'" onmouseout="this.style.borderColor='rgba(255,255,255,0.07)'">
       <div style="font-size:12px;font-weight:600;color:#ddd;margin-bottom:4px">${esc(p.title)}</div>
