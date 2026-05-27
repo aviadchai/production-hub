@@ -1,33 +1,60 @@
 'use client'
 
+import { useState } from 'react'
 import { ExternalLink, Film } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface ArtlistEmbedProps {
   url: string
+  videoSrc?: string | null
 }
 
 function extractArtlistInfo(url: string) {
   try {
     const parsed = new URL(url)
-    const assetId = parsed.searchParams.get('assetId')
     const width = parsed.searchParams.get('assetWidth') || '1280'
     const height = parsed.searchParams.get('assetHeight') || '720'
     const ratio = parsed.searchParams.get('assetAspectRatio') || '16:9'
     const isArtlist = parsed.hostname.includes('artlist.io')
-    return { assetId, width, height, ratio, isArtlist }
+    return { width, height, ratio, isArtlist }
   } catch {
     return null
   }
 }
 
-export function ArtlistEmbed({ url }: ArtlistEmbedProps) {
+export function ArtlistEmbed({ url, videoSrc }: ArtlistEmbedProps) {
+  const [videoError, setVideoError] = useState(false)
   const info = extractArtlistInfo(url)
 
   if (!info?.isArtlist) {
     return (
       <div className="w-full aspect-video bg-secondary/40 rounded-lg flex items-center justify-center text-sm text-muted-foreground">
         Invalid link
+      </div>
+    )
+  }
+
+  if (videoSrc && !videoError) {
+    return (
+      <div className="w-full space-y-1.5">
+        <video
+          src={videoSrc}
+          controls
+          preload="metadata"
+          className="w-full aspect-video rounded-lg bg-black border border-border"
+          onError={() => setVideoError(true)}
+        />
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[10px] text-muted-foreground">{info.ratio} · {info.width}×{info.height}</span>
+          <a
+            href={url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Artlist
+          </a>
+        </div>
       </div>
     )
   }

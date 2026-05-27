@@ -5,7 +5,7 @@ import { deptColors } from '@/lib/mock-data'
 interface Project {
   id: string
   name: string
-  description: string
+  description: string | null
   department_name: string
   department_slug: string
   status: 'active' | 'archived'
@@ -14,8 +14,8 @@ interface Project {
   prompt_count: number
 }
 
-export function ProjectCard({ project, deptId }: { project: Project; deptId?: string }) {
-  const colors = deptId ? deptColors[deptId] : null
+export function ProjectCard({ project, deptSlug }: { project: Project; deptSlug?: string }) {
+  const colors = deptSlug ? deptColors[deptSlug] : null
 
   return (
     <Link

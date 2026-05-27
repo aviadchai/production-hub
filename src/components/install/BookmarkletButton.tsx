@@ -1,6 +1,7 @@
 'use client'
 
 import { GripVertical } from 'lucide-react'
+import { toast } from 'sonner'
 
 const PRODUCTION_HUB_URL = 'https://production-hub-alpha.vercel.app'
 
@@ -41,7 +42,7 @@ export function BookmarkletButton() {
           className="flex items-center gap-2 px-4 py-2 rounded-lg bg-foreground text-background text-sm font-semibold cursor-grab active:cursor-grabbing select-none hover:bg-foreground/90 transition-colors"
           onClick={(e) => {
             e.preventDefault()
-            alert('Drag this button to your bookmarks bar — don\'t click it here.')
+            toast.info('Drag this button to your bookmarks bar — don\'t click it here.')
           }}
           draggable
         >

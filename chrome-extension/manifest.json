@@ -1,12 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Production Hub",
-  "version": "1.0.0",
-  "description": "Send Artlist scenes directly to Production Hub",
-  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
-  "host_permissions": ["https://toolkit.artlist.io/*"],
+  "version": "1.9.0",
+  "description": "Save Artlist AI videos directly to Production Hub projects",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://toolkit.artlist.io/*",
+    "https://production-hub-omega-five.vercel.app/*"
+  ],
   "action": {
-    "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",
