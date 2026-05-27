@@ -8,6 +8,7 @@ let isAuthenticated = false
 console.log('[Production Hub] content script loaded on', location.href)
 
 async function initExtension() {
+  // Step 1: auth check — isolated so data-load errors don't reset auth state
   try {
     console.log('[Production Hub] checking auth...')
     const res = await fetch(`${HUB_URL}/api/auth/me`, { credentials: 'include' })
@@ -15,6 +16,14 @@ async function initExtension() {
     if (!res.ok) { isAuthenticated = false; console.log('[Production Hub] not authenticated'); return }
     isAuthenticated = true
     console.log('[Production Hub] authenticated ✓')
+  } catch(e) {
+    console.log('[Production Hub] auth fetch failed:', e.message)
+    isAuthenticated = false
+    return
+  }
+
+  // Step 2: load data — failures here do NOT affect isAuthenticated
+  try {
     const [projRes, promptRes] = await Promise.all([
       fetch(`${HUB_URL}/api/extension/projects`, { credentials: 'include' }),
       fetch(`${HUB_URL}/api/saved-prompts`, { credentials: 'include' }),
@@ -23,8 +32,7 @@ async function initExtension() {
     if (promptRes.ok) savedPrompts = await promptRes.json()
     console.log('[Production Hub] loaded', projects.length, 'projects,', savedPrompts.length, 'prompts')
   } catch(e) {
-    console.log('[Production Hub] auth fetch failed:', e.message)
-    isAuthenticated = false
+    console.log('[Production Hub] data fetch failed (non-critical):', e.message)
   }
 }
 
@@ -79,6 +87,10 @@ setInterval(() => {
 saveBtn.addEventListener('click', e => {
   e.preventDefault(); e.stopPropagation()
   saveBtn.style.display = 'none'; saveBtnVisible = false
+  if (!isAuthenticated) {
+    window.open(`${HUB_URL}/login`, '_blank', 'width=420,height=520')
+    return
+  }
   showSavePanel()
 })
 
@@ -191,6 +203,7 @@ function showSavePanel() {
   const opts = projects.map(p => `<option value="${esc(p.id)}">${esc(p.department_name)} — ${esc(p.name)}</option>`).join('')
   const hasVideo = !!data.videoSrc
   const hasPrompt = !!data.prompt
+  const noProjects = projects.length === 0
 
   panel.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
@@ -215,6 +228,13 @@ function showSavePanel() {
       </div>
     </div>
     ${hasPrompt ? `<div style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:#888;max-height:60px;overflow:hidden;line-height:1.5">${esc(data.prompt.slice(0,180))}${data.prompt.length > 180 ? '…' : ''}</div>` : ''}
+    ${noProjects ? `
+    <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
+      <div style="font-size:22px;margin-bottom:8px">📁</div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">No projects found.<br>Open Hub to browse or create one.</div>
+      <a href="${HUB_URL}/projects" target="_blank" style="display:inline-block;background:#fff;color:#000;text-decoration:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700">Open Hub →</a>
+    </div>
+    ` : `
     <div style="margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
         <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.08em">Project</label>
@@ -225,6 +245,7 @@ function showSavePanel() {
       </select>
     </div>
     <button id="ph-save" style="width:100%;background:#fff;color:#000;border:none;border-radius:9px;padding:11px;font-size:14px;font-weight:700;cursor:pointer">Save to Hub →</button>
+    `}
   `
 
   document.body.appendChild(overlay)

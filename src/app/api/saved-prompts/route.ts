@@ -1,6 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db, CURRENT_USER_EMAIL } from '@/lib/supabase'
 
+const CORS = {
+  'Access-Control-Allow-Origin': 'https://toolkit.artlist.io',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
+}
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS })
+}
+
 export async function GET() {
   const { data, error } = await db()
     .from('saved_prompts')
@@ -8,10 +18,8 @@ export async function GET() {
     .eq('user_id', CURRENT_USER_EMAIL)
     .order('created_at', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data ?? [], {
-    headers: { 'Access-Control-Allow-Origin': 'https://toolkit.artlist.io' },
-  })
+  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS })
+  return NextResponse.json(data ?? [], { headers: CORS })
 }
 
 export async function POST(req: Request) {

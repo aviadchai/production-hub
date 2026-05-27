@@ -3,7 +3,12 @@ import { db } from '@/lib/supabase'
 
 const CORS = {
   'Access-Control-Allow-Origin': 'https://toolkit.artlist.io',
-  'Access-Control-Allow-Methods': 'GET',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Credentials': 'true',
+}
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS })
 }
 
 export async function GET() {
