@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
-import { Download, MousePointer, Zap, Check, Copy, ExternalLink, Film } from 'lucide-react'
+import { Download, MousePointer, Zap, Check, Copy, ExternalLink, Film, Settings2, Sparkles } from 'lucide-react'
 
 const VERSION = 'v2.5'
 const ZIP = `/prompt-manager-extension-${VERSION}.zip`
@@ -22,7 +22,10 @@ export default function InstallPage() {
       <div className="max-w-xl space-y-8">
 
         <div className="space-y-1">
-          <h1 className="text-xl font-bold">Install the Chrome Extension</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold">Install the Chrome Extension</h1>
+            <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border">{VERSION}</span>
+          </div>
           <p className="text-sm text-muted-foreground">
             Adds a save button directly on Artlist videos — 3 quick steps.
           </p>
@@ -36,7 +39,7 @@ export default function InstallPage() {
           done={step >= 1}
         >
           <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-card">
-            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 text-xl">🎬</div>
+            <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 text-xl">🔒</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">Prompt Manager Extension</p>
               <p className="text-xs text-muted-foreground">Chrome Extension · {VERSION}</p>
@@ -62,7 +65,7 @@ export default function InstallPage() {
         <Step
           number={2}
           icon={<MousePointer className="h-4 w-4" />}
-          title="Open Chrome Extensions"
+          title="Load into Chrome"
           done={step >= 2}
           dimmed={step < 1}
         >
@@ -108,8 +111,8 @@ export default function InstallPage() {
         >
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Go to <span className="text-foreground font-medium">toolkit.artlist.io</span>, hover over any AI-generated video,
-              and click <span className="text-foreground font-medium">🎬 Save to Hub</span>.
+              Go to <span className="text-foreground font-medium">toolkit.artlist.io</span>, hover over any AI-generated video
+              and click <span className="text-foreground font-medium">🎬 Save to Prompt Manager</span>.
             </p>
             <div className="flex gap-2">
               <a
@@ -136,10 +139,37 @@ export default function InstallPage() {
 
         {step >= 3 && (
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5 text-center space-y-1">
-            <p className="font-semibold text-emerald-400">You're all set!</p>
+            <p className="font-semibold text-emerald-400">You&apos;re all set!</p>
             <p className="text-xs text-muted-foreground">The extension is active on toolkit.artlist.io</p>
           </div>
         )}
+
+        {/* Settings tip */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">Customize the button style</h3>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Click the <span className="text-foreground font-medium">🔒 extension icon</span> in your Chrome toolbar to open the settings panel.
+          </p>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { icon: '🖱️', label: 'Hover', desc: 'Shows on video hover' },
+              { icon: '📌', label: 'Corner', desc: 'Fixed in corner, never in the way' },
+              { icon: '🚫', label: 'Off', desc: 'Use the extension icon only' },
+            ].map((item) => (
+              <div key={item.label} className="rounded-lg border border-border bg-secondary/30 p-2.5 space-y-1 text-center">
+                <div className="text-base">{item.icon}</div>
+                <p className="text-xs font-semibold">{item.label}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            You can also toggle the <span className="text-foreground">⚡ Insert Prompt</span> button on/off from the same panel.
+          </p>
+        </div>
 
         {/* What gets captured */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -149,20 +179,48 @@ export default function InstallPage() {
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: 'Artlist URL', status: 'always' },
+              { label: 'Artlist URL',      status: 'always' },
               { label: 'Video dimensions', status: 'always' },
-              { label: 'Prompt text', status: 'when visible' },
-              { label: 'AI model', status: 'when visible' },
-              { label: 'Direct video link', status: 'when available' },
+              { label: 'Aspect ratio',     status: 'always' },
+              { label: 'Prompt text',      status: 'when visible' },
+              { label: 'AI model',         status: 'when visible' },
+              { label: 'Frame rate',       status: 'when visible' },
+              { label: 'Duration',         status: 'when visible' },
+              { label: 'Direct video URL', status: 'when available' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2 text-xs">
-                <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${item.status === 'always' ? 'bg-emerald-400' : 'bg-yellow-400'}`} />
+                <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  item.status === 'always' ? 'bg-emerald-400' : 'bg-yellow-400'
+                }`} />
                 <span className="text-foreground/80">{item.label}</span>
                 <span className="text-muted-foreground text-[10px]">{item.status}</span>
               </div>
             ))}
           </div>
         </div>
+
+        {/* What's new */}
+        <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-muted-foreground" />
+            <h3 className="text-sm font-semibold">What&apos;s new in {VERSION}</h3>
+          </div>
+          <ul className="space-y-2 text-xs text-muted-foreground">
+            {[
+              'Settings panel in the extension icon — click it to customize',
+              'Fixed corner button mode — stays out of the way of Artlist controls',
+              'Toggle Insert Prompt and Save button independently',
+              'New lock + P icon',
+              'Auth status visible directly in the extension popup',
+            ].map((item) => (
+              <li key={item} className="flex items-start gap-2">
+                <span className="text-emerald-400 shrink-0 mt-0.5">✓</span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
       </div>
     </AppLayout>
   )
