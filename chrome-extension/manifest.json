@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Prompt Manager",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Save Artlist AI videos and prompts to Prompt Manager",
   "background": {
     "service_worker": "background.js"
@@ -12,6 +12,7 @@
     "https://production-hub-omega-five.vercel.app/*"
   ],
   "action": {
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",

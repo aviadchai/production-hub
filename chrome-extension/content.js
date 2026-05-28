@@ -1,10 +1,13 @@
 // Injected into toolkit.artlist.io
 
 const HUB_URL = 'https://production-hub-omega-five.vercel.app'
-const EXTENSION_VERSION = '2.4.0'
+const EXTENSION_VERSION = '2.5.0'
 let projects = []
 let savedPrompts = []
 let isAuthenticated = false
+let buttonMode = 'hover'        // 'hover' | 'fab' | 'off'
+let showInsertPrompt = true     // show ⚡ Insert Prompt button near textarea
+let showSaveToLibrary = true    // (website-side, read by PromptCard)
 
 console.log('[Prompt Manager] content script loaded on', location.href, '| version', EXTENSION_VERSION)
 // Let the web app detect which extension version is installed
@@ -92,6 +95,21 @@ initExtension()
 // Check for updates in parallel (non-blocking)
 checkForUpdate()
 
+// ── Load all settings from storage + listen for changes ──────────────────────
+chrome.storage.local.get(['buttonMode', 'showInsertPrompt', 'showSaveToLibrary'], (result) => {
+  buttonMode       = result.buttonMode       ?? 'hover'
+  showInsertPrompt = result.showInsertPrompt ?? true
+  showSaveToLibrary = result.showSaveToLibrary ?? true
+  applyButtonMode()
+})
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return
+  if (changes.buttonMode)       { buttonMode       = changes.buttonMode.newValue;       applyButtonMode() }
+  if (changes.showInsertPrompt) { showInsertPrompt = changes.showInsertPrompt.newValue }
+  if (changes.showSaveToLibrary) { showSaveToLibrary = changes.showSaveToLibrary.newValue }
+})
+
 // ── Re-check auth + reload data (called after login popup closes) ─────────────
 async function recheckAndReload() {
   try {
@@ -126,7 +144,7 @@ function openLoginAndWait(onSuccess) {
   }, 800)
 }
 
-// ── Floating button: Save to Prompt Manager (hover over video) ───────────────
+// ── Hover button: Save to Prompt Manager ─────────────────────────────────────
 const saveBtn = document.createElement('button')
 saveBtn.textContent = '🎬 Save to Prompt Manager'
 saveBtn.style.cssText = `
@@ -141,6 +159,50 @@ saveBtn.style.cssText = `
   display:none;pointer-events:auto;
 `
 document.body.appendChild(saveBtn)
+
+// ── FAB: fixed corner button ──────────────────────────────────────────────────
+const fabBtn = document.createElement('button')
+fabBtn.title = 'Save to Prompt Manager'
+fabBtn.style.cssText = `
+  position:fixed;z-index:2147483647;
+  bottom:22px;right:22px;
+  width:48px;height:48px;border-radius:50%;
+  background:rgba(10,10,10,0.92);color:#fff;
+  border:1px solid rgba(255,255,255,0.22);
+  cursor:pointer;font-size:20px;line-height:1;
+  box-shadow:0 4px 24px rgba(0,0,0,0.7);
+  backdrop-filter:blur(6px);
+  display:none;pointer-events:auto;
+  transition:transform 0.15s,box-shadow 0.15s;
+`
+fabBtn.textContent = '🎬'
+fabBtn.addEventListener('mouseenter', () => {
+  fabBtn.style.transform = 'scale(1.1)'
+  fabBtn.style.boxShadow = '0 6px 32px rgba(0,0,0,0.85)'
+})
+fabBtn.addEventListener('mouseleave', () => {
+  fabBtn.style.transform = 'scale(1)'
+  fabBtn.style.boxShadow = '0 4px 24px rgba(0,0,0,0.7)'
+})
+document.body.appendChild(fabBtn)
+
+// ── Mode application ──────────────────────────────────────────────────────────
+function applyButtonMode() {
+  if (buttonMode === 'fab') {
+    fabBtn.style.display = 'flex'
+    fabBtn.style.alignItems = 'center'
+    fabBtn.style.justifyContent = 'center'
+    saveBtn.style.display = 'none'
+    saveBtnVisible = false
+  } else if (buttonMode === 'off') {
+    fabBtn.style.display = 'none'
+    saveBtn.style.display = 'none'
+    saveBtnVisible = false
+  } else {
+    // 'hover' — FAB hidden, hover interval handles saveBtn
+    fabBtn.style.display = 'none'
+  }
+}
 
 let mouseX = 0, mouseY = 0
 document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY }, true)
@@ -158,6 +220,11 @@ function findVideoUnderMouse() {
 
 let saveBtnVisible = false
 setInterval(() => {
+  // Only drive hover button in 'hover' mode
+  if (buttonMode !== 'hover') {
+    if (saveBtnVisible) { saveBtn.style.display = 'none'; saveBtnVisible = false }
+    return
+  }
   if (activePanel) { if (saveBtnVisible) { saveBtn.style.display = 'none'; saveBtnVisible = false } return }
   const overVideo = findVideoUnderMouse()
   if (overVideo) {
@@ -172,15 +239,23 @@ setInterval(() => {
   }
 }, 200)
 
-saveBtn.addEventListener('click', e => {
-  e.preventDefault(); e.stopPropagation()
-  saveBtn.style.display = 'none'; saveBtnVisible = false
+function handleSaveClick() {
   if (!isAuthenticated) {
     openLoginAndWait(() => showSavePanel())
     return
   }
-  // Refresh projects in background before showing panel
   recheckAndReload().then(() => showSavePanel())
+}
+
+saveBtn.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation()
+  saveBtn.style.display = 'none'; saveBtnVisible = false
+  handleSaveClick()
+})
+
+fabBtn.addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation()
+  handleSaveClick()
 })
 
 // ── Floating button: Insert Prompt (near textarea) ───────────────────────────
@@ -204,6 +279,11 @@ let promptSaverBtnVisible = false
 let lastTextareaRect = null
 
 setInterval(() => {
+  // Hide if disabled in settings
+  if (!showInsertPrompt) {
+    if (promptSaverBtnVisible) { promptSaverBtn.style.display = 'none'; promptSaverBtnVisible = false }
+    return
+  }
   if (activePanel || activeSaverPanel) return
   const textarea = findMainTextarea()
   if (!textarea) {
@@ -267,9 +347,17 @@ promptSaverBtn.addEventListener('click', e => {
   showSaverPanel()
 })
 
-// ── Extension icon click → Save panel ────────────────────────────────────────
+// ── Extension icon click → Save panel / settings ─────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === 'showPanel') showSavePanel()
+  if (msg.action === 'setMode') {
+    buttonMode = msg.mode
+    applyButtonMode()
+  }
+  if (msg.action === 'setSetting') {
+    if (msg.key === 'showInsertPrompt') showInsertPrompt = msg.value
+    if (msg.key === 'showSaveToLibrary') showSaveToLibrary = msg.value
+  }
 })
 
 // ── Data extraction ───────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Download, MousePointer, Zap, Check, Copy, ExternalLink, Film } from 'lucide-react'
 
-const VERSION = 'v2.4'
+const VERSION = 'v2.5'
 const ZIP = `/prompt-manager-extension-${VERSION}.zip`
 
 export default function InstallPage() {

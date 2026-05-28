@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 // Bump this whenever you publish a new extension ZIP
-const LATEST_VERSION = '2.4.0'
+const LATEST_VERSION = '2.5.0'
 const DOWNLOAD_URL = 'https://production-hub-omega-five.vercel.app/install'
 
 const CORS = {

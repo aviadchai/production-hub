@@ -10,7 +10,7 @@ import { toast } from 'sonner'
 interface Me { displayName: string; username: string; isAdmin: boolean }
 
 // Keep in sync with chrome-extension/manifest.json version
-const LATEST_EXT_VERSION = '2.4.0'
+const LATEST_EXT_VERSION = '2.5.0'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -69,7 +69,7 @@ export function Sidebar() {
           <Film className="h-5 w-5 text-foreground shrink-0" />
           <span className="font-bold text-sm tracking-tight">Prompt Manager</span>
         </div>
-        <span className="text-[10px] text-muted-foreground/50 font-mono shrink-0">v2.0</span>
+        <span className="text-[10px] text-muted-foreground/50 font-mono shrink-0">v2.5</span>
       </div>
 
       <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">

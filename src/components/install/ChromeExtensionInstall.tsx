@@ -20,15 +20,15 @@ export function ChromeExtensionInstall() {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">Prompt Manager Extension</p>
-          <p className="text-xs text-muted-foreground">Chrome Extension · v2.4</p>
+          <p className="text-xs text-muted-foreground">Chrome Extension · v2.5</p>
         </div>
         <a
-          href="/prompt-manager-extension-v2.4.zip"
-          download="prompt-manager-extension-v2.4.zip"
+          href="/prompt-manager-extension-v2.5.zip"
+          download="prompt-manager-extension-v2.5.zip"
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
         >
           <Download className="h-3 w-3" />
-          Download v2.4
+          Download v2.5
         </a>
       </div>
 

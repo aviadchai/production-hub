@@ -1,149 +1,108 @@
-const PRODUCTION_HUB_URL = 'https://production-hub-alpha.vercel.app'
+const HUB_URL = 'https://production-hub-omega-five.vercel.app'
 
-const mockProjects = [
-  { id: '1', name: 'Q2 2025 Campaign', scenes: ['Opening — Skyline', 'Product in Action', 'Closing — CTA'] },
-  { id: '2', name: 'Brand Reel 2025', scenes: ['Intro', 'Core Message', 'Outro'] },
-  { id: '3', name: 'Social Media Pack', scenes: ['Instagram', 'TikTok', 'LinkedIn'] },
-]
-
-const modelLabels = { sora: 'Sora', runway: 'Runway', veo: 'Veo', kling: 'Kling', other: 'Other' }
-
-let extractedData = null
+// Defaults for all settings
+const DEFAULTS = {
+  buttonMode: 'hover',
+  showInsertPrompt: true,
+  showSaveToLibrary: true,
+}
 
 async function init() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
-  const body = document.getElementById('main-body')
-  const badge = document.getElementById('status-badge')
-
   const isArtlist = tab?.url?.includes('toolkit.artlist.io')
 
-  if (!isArtlist) {
-    badge.textContent = 'Not on Artlist'
-    badge.style.color = '#666'
-    body.innerHTML = `
-      <div class="not-artlist">
-        <strong>Go to Artlist Toolkit</strong>
-        Open a generated video or image on<br>toolkit.artlist.io to use this extension.
-      </div>
-      <div class="actions" style="padding: 0 0 4px">
-        <button class="btn-primary" onclick="chrome.tabs.create({url:'https://toolkit.artlist.io'})">
-          Open Artlist Toolkit
-        </button>
-      </div>
-    `
-    return
-  }
-
-  badge.textContent = 'Artlist'
-  badge.style.color = '#4ade80'
-
+  // ── Auth check ──────────────────────────────────────────────────────────────
   try {
-    extractedData = await chrome.tabs.sendMessage(tab.id, { action: 'extractData' })
+    const res = await fetch(`${HUB_URL}/api/auth/me`, { credentials: 'include' })
+    const data = res.ok ? await res.json() : null
+
+    const dot  = document.getElementById('auth-dot')
+    const name = document.getElementById('auth-name')
+    const link = document.getElementById('auth-link')
+
+    if (data?.authenticated) {
+      dot.className    = 'dot dot-green'
+      name.textContent = data.displayName || data.username || 'Signed in'
+      link.style.display  = 'inline'
+      link.textContent = 'Sign out'
+      link.href        = `${HUB_URL}/login`
+    } else {
+      dot.className    = 'dot dot-red'
+      name.textContent = 'Not signed in'
+      link.style.display  = 'inline'
+      link.textContent = 'Sign in →'
+      link.href        = `${HUB_URL}/login`
+    }
   } catch {
-    extractedData = {}
+    document.getElementById('auth-name').textContent = 'Could not connect'
   }
 
-  renderForm(body, extractedData || {})
+  // ── "Save current video" shortcut ──────────────────────────────────────────
+  if (isArtlist && tab) {
+    const btn = document.getElementById('save-now-btn')
+    btn.style.display = 'flex'
+    btn.disabled = false
+    btn.addEventListener('click', async () => {
+      btn.disabled = true
+      btn.textContent = 'Opening…'
+      try {
+        await chrome.tabs.sendMessage(tab.id, { action: 'showPanel' })
+        window.close()
+      } catch {
+        btn.textContent = '⚠ Reload the Artlist page first'
+        setTimeout(() => { btn.disabled = false; btn.innerHTML = '🎬 Save current video' }, 2500)
+      }
+    })
+  }
+
+  // ── Load all settings ───────────────────────────────────────────────────────
+  const stored = await chrome.storage.local.get(Object.keys(DEFAULTS))
+  const settings = { ...DEFAULTS, ...stored }
+
+  // Apply button mode selection
+  applyModeSelected(settings.buttonMode)
+
+  // Apply toggle states
+  setToggle('showInsertPrompt', settings.showInsertPrompt)
+  setToggle('showSaveToLibrary', settings.showSaveToLibrary)
+
+  // ── Button mode click handlers ──────────────────────────────────────────────
+  document.querySelectorAll('.mode-option').forEach(el => {
+    el.addEventListener('click', () => {
+      const mode = el.getAttribute('data-mode')
+      chrome.storage.local.set({ buttonMode: mode })
+      applyModeSelected(mode)
+      if (isArtlist && tab) {
+        chrome.tabs.sendMessage(tab.id, { action: 'setMode', mode }).catch(() => {})
+      }
+    })
+  })
+
+  // ── Feature toggle click handlers ───────────────────────────────────────────
+  document.querySelectorAll('.toggle-row').forEach(el => {
+    el.addEventListener('click', () => {
+      const key = el.getAttribute('data-toggle')
+      const current = el.querySelector('.switch').classList.contains('on')
+      const next = !current
+      chrome.storage.local.set({ [key]: next })
+      setToggle(key, next)
+      if (isArtlist && tab) {
+        chrome.tabs.sendMessage(tab.id, { action: 'setSetting', key, value: next }).catch(() => {})
+      }
+    })
+  })
 }
 
-function renderForm(body, data) {
-  const projectOptions = mockProjects
-    .map((p) => `<option value="${p.id}">${p.name}</option>`)
-    .join('')
-
-  const firstProject = mockProjects[0]
-  const sceneOptions = firstProject.scenes
-    .map((s) => `<option value="${s}">${s}</option>`)
-    .join('')
-
-  const videoStatus = data.videoSrc
-    ? `<div class="video-found"><div class="dot"></div>Video URL found — can embed directly</div>`
-    : `<div class="no-video">⚠ No direct video URL — Artlist link will be saved</div>`
-
-  body.innerHTML = `
-    <div class="field">
-      <label>Prompt</label>
-      <textarea id="prompt-text" placeholder="Paste or edit the prompt...">${data.promptText || ''}</textarea>
-    </div>
-
-    <div class="row">
-      <div class="field">
-        <label>AI Model</label>
-        <select id="ai-model">
-          ${Object.entries(modelLabels).map(([v, l]) => `<option value="${v}" ${data.aiModel === v ? 'selected' : ''}>${l}</option>`).join('')}
-        </select>
-      </div>
-      <div class="field">
-        <label>Dimensions</label>
-        <input type="text" value="${data.width || ''}×${data.height || ''}" readonly style="color:#666" />
-      </div>
-    </div>
-
-    ${videoStatus}
-
-    <div class="field">
-      <label>Add to Project</label>
-      <select id="project-select">${projectOptions}</select>
-    </div>
-
-    <div class="field">
-      <label>Scene</label>
-      <select id="scene-select">${sceneOptions}</select>
-    </div>
-
-    <div class="actions">
-      <button class="btn-secondary" id="btn-copy">Copy Prompt</button>
-      <button class="btn-primary" id="btn-add">Add to Hub →</button>
-    </div>
-  `
-
-  // Update scenes when project changes
-  document.getElementById('project-select').addEventListener('change', (e) => {
-    const project = mockProjects.find((p) => p.id === e.target.value)
-    const sceneSelect = document.getElementById('scene-select')
-    sceneSelect.innerHTML = project.scenes
-      .map((s) => `<option value="${s}">${s}</option>`)
-      .join('')
+function applyModeSelected(mode) {
+  document.querySelectorAll('.mode-option').forEach(el => {
+    el.classList.toggle('selected', el.getAttribute('data-mode') === mode)
   })
+}
 
-  document.getElementById('btn-copy').addEventListener('click', async () => {
-    const prompt = document.getElementById('prompt-text').value
-    if (!prompt) return
-    await navigator.clipboard.writeText(prompt)
-    const btn = document.getElementById('btn-copy')
-    btn.textContent = 'Copied ✓'
-    btn.style.color = '#4ade80'
-    setTimeout(() => { btn.textContent = 'Copy Prompt'; btn.style.color = '' }, 2000)
-  })
-
-  document.getElementById('btn-add').addEventListener('click', () => {
-    const prompt = document.getElementById('prompt-text').value
-    const model = document.getElementById('ai-model').value
-    const projectId = document.getElementById('project-select').value
-    const scene = document.getElementById('scene-select').value
-
-    const params = new URLSearchParams({
-      addPrompt: '1',
-      projectId,
-      scene,
-      model,
-      artlistUrl: data.url || '',
-      ...(data.videoSrc ? { videoSrc: data.videoSrc } : {}),
-      prompt: prompt.slice(0, 500),
-    })
-
-    chrome.tabs.create({ url: `${PRODUCTION_HUB_URL}/projects/${projectId}?${params}` })
-
-    // Show success
-    body.innerHTML = `
-      <div class="success">
-        ✓ Opening Production Hub<br>
-        <span style="color:#666;font-size:11px;margin-top:4px;display:block">
-          "${scene}" in ${mockProjects.find(p => p.id === projectId)?.name}
-        </span>
-      </div>
-    `
-  })
+function setToggle(key, value) {
+  const sw = document.getElementById(`toggle-${key}`)
+  if (!sw) return
+  sw.classList.toggle('on', !!value)
 }
 
 init()
