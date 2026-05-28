@@ -285,12 +285,13 @@ setInterval(() => {
     return
   }
   if (activePanel || activeSaverPanel) return
-  const textarea = findMainTextarea()
-  if (!textarea) {
+  // Use findInsertTarget (no text requirement) so button appears even on empty fields
+  const target = findInsertTarget()
+  if (!target) {
     if (promptSaverBtnVisible) { promptSaverBtn.style.display = 'none'; promptSaverBtnVisible = false }
     return
   }
-  const r = textarea.getBoundingClientRect()
+  const r = target.getBoundingClientRect()
   if (r.width < 100) {
     if (promptSaverBtnVisible) { promptSaverBtn.style.display = 'none'; promptSaverBtnVisible = false }
     return
@@ -312,52 +313,56 @@ function isSearchInput(el) {
   return hint.includes('search') || hint.includes('find') || hint.includes('חיפוש')
 }
 
-function findMainTextarea() {
-  // 1. Explicit prompt selectors — highest priority
-  const promptSelectors = [
+// findInsertTarget — finds the textarea to POSITION the ⚡ button next to.
+// Does NOT require content — the field may be empty (user will insert into it).
+function findInsertTarget() {
+  const selectors = [
     '[data-testid*="prompt" i]',
     '[aria-label*="prompt" i]',
     '[placeholder*="prompt" i]',
     '[id*="prompt" i]',
     '[class*="prompt" i] textarea',
     '[class*="prompt" i] [contenteditable]',
+    'textarea',
+    '[contenteditable="true"]',
   ]
-  for (const sel of promptSelectors) {
+  for (const sel of selectors) {
+    try {
+      for (const el of document.querySelectorAll(sel)) {
+        if (isInChrome(el) || isSearchInput(el)) continue
+        const r = el.getBoundingClientRect()
+        if (r.width > 100 && r.top >= -100 && r.bottom <= window.innerHeight + 300) return el
+      }
+    } catch {}
+  }
+  return null
+}
+
+// findMainTextarea — finds a textarea that has actual prompt TEXT in it (for extraction).
+function findMainTextarea() {
+  const selectors = [
+    '[data-testid*="prompt" i]',
+    '[aria-label*="prompt" i]',
+    '[placeholder*="prompt" i]',
+    '[id*="prompt" i]',
+    '[class*="prompt" i] textarea',
+    '[class*="prompt" i] [contenteditable]',
+    'textarea',
+    '[contenteditable="true"]',
+  ]
+  for (const sel of selectors) {
     try {
       for (const el of document.querySelectorAll(sel)) {
         if (isInChrome(el) || isSearchInput(el)) continue
         const r = el.getBoundingClientRect()
         const text = (el.value || el.innerText || el.textContent || '').trim()
-        if (r.width > 80 && text.length >= 10) {
-          console.log('[PM] prompt found via selector:', sel, '| text:', text.slice(0, 60))
+        if (r.width > 80 && looksLikePrompt(text)) {
+          console.log('[PM] textarea with prompt | sel:', sel, '| text:', text.slice(0, 60))
           return el
         }
       }
     } catch {}
   }
-
-  // 2. Standard textarea — not in chrome, not a search, has meaningful content
-  for (const el of document.querySelectorAll('textarea')) {
-    if (isInChrome(el) || isSearchInput(el)) continue
-    const r = el.getBoundingClientRect()
-    const text = (el.value || el.innerText || '').trim()
-    if (r.width > 100 && r.top >= -100 && r.bottom <= window.innerHeight + 300 && text.length >= 20) {
-      console.log('[PM] prompt found via textarea | text:', text.slice(0, 60))
-      return el
-    }
-  }
-
-  // 3. Contenteditable — not in chrome, has content
-  for (const el of document.querySelectorAll('[contenteditable="true"],[contenteditable=""]')) {
-    if (isInChrome(el) || isSearchInput(el)) continue
-    const r = el.getBoundingClientRect()
-    const text = (el.innerText || el.textContent || '').trim()
-    if (r.width > 100 && r.height > 20 && r.top >= -100 && r.bottom <= window.innerHeight + 300 && text.length >= 20) {
-      console.log('[PM] prompt found via contenteditable | text:', text.slice(0, 60))
-      return el
-    }
-  }
-
   return null
 }
 
@@ -462,27 +467,48 @@ function extractData() {
   const videoSrc = bestVideo ? (bestVideo.el.currentSrc || bestVideo.el.src || '') : ''
   const duration = bestVideo && isFinite(bestVideo.el.duration) ? Math.round(bestVideo.el.duration) : 0
 
-  // ── Prompt — 5 strategies, best signal wins ────────────────────────────────
+  // ── Prompt — 6 strategies, best signal wins ────────────────────────────────
   let prompt = ''
   let promptSource = ''
 
-  // 1. URL param
-  const urlPrompt = p.get('prompt') || p.get('assetPrompt')
-  if (!prompt && urlPrompt && looksLikePrompt(decodeURIComponent(urlPrompt))) {
-    prompt = decodeURIComponent(urlPrompt)
-    promptSource = 'url-param'
+  // 1. __NEXT_DATA__ — Next.js embeds all page data here (highest reliability)
+  if (!prompt) {
+    try {
+      const nd = document.getElementById('__NEXT_DATA__')
+      if (nd) {
+        const json = nd.textContent
+        // Search for any key that looks like a prompt field with substantial text
+        const keys = ['prompt', 'promptText', 'prompt_text', 'userPrompt', 'generationPrompt']
+        for (const key of keys) {
+          const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.){40,1000})"`)
+          const m = json.match(re)
+          if (m) {
+            const t = m[1].replace(/\\n/g, '\n').replace(/\\t/g, '\t').replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+            if (looksLikePrompt(t)) { prompt = t; promptSource = `next-data[${key}]`; break }
+          }
+        }
+      }
+    } catch(e) { console.log('[PM] next-data parse error:', e.message) }
   }
 
-  // 2. data-prompt attribute
+  // 2. URL param
   if (!prompt) {
-    const el = document.querySelector('[data-prompt]')
-    if (el) {
-      const t = el.getAttribute('data-prompt').trim()
-      if (looksLikePrompt(t)) { prompt = t; promptSource = 'data-prompt' }
+    const urlPrompt = p.get('prompt') || p.get('assetPrompt')
+    if (urlPrompt) {
+      const t = decodeURIComponent(urlPrompt)
+      if (looksLikePrompt(t)) { prompt = t; promptSource = 'url-param' }
     }
   }
 
-  // 3. Editable/readable field with explicit prompt semantics
+  // 3. data-prompt attribute anywhere on page
+  if (!prompt) {
+    for (const el of document.querySelectorAll('[data-prompt]')) {
+      const t = (el.getAttribute('data-prompt') || '').trim()
+      if (looksLikePrompt(t)) { prompt = t; promptSource = 'data-prompt'; break }
+    }
+  }
+
+  // 4. Textarea / input with prompt content
   if (!prompt) {
     const textarea = findMainTextarea()
     if (textarea) {
@@ -491,19 +517,19 @@ function extractData() {
     }
   }
 
-  // 4. Text sibling of a "Prompt" label
+  // 5. Text sibling of a "Prompt" label element
   if (!prompt) {
     const t = findPromptNearLabel()
     if (t) { prompt = t; promptSource = 'label-sibling' }
   }
 
-  // 5. Text in the same container as the video
+  // 6. Any substantial text in the same container as the video
   if (!prompt && bestVideo) {
     const t = findPromptNearVideo(bestVideo.el)
     if (t) { prompt = t; promptSource = 'near-video' }
   }
 
-  console.log('[PM] prompt source:', promptSource, '| text:', prompt.slice(0, 100) || '(none)')
+  console.log('[PM] prompt source:', promptSource || 'none', '| text:', prompt.slice(0, 120) || '(empty)')
 
   // ── AI model ───────────────────────────────────────────────────────────────
   // Look for model name in the visible page text, prioritise area near the video
