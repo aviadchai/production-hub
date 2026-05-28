@@ -300,8 +300,20 @@ setInterval(() => {
   if (!promptSaverBtnVisible) { promptSaverBtn.style.display = 'block'; promptSaverBtnVisible = true }
 }, 300)
 
+// Returns true if element is inside chrome (nav/header/footer/aside)
+function isInChrome(el) {
+  return !!el.closest('nav, header, footer, aside, [role="navigation"], [role="banner"], [role="complementary"]')
+}
+
+// Returns true if element looks like a search box
+function isSearchInput(el) {
+  const hint = [el.placeholder, el.getAttribute('aria-label'), el.name, el.id, el.className]
+    .join(' ').toLowerCase()
+  return hint.includes('search') || hint.includes('find') || hint.includes('חיפוש')
+}
+
 function findMainTextarea() {
-  // 1. Explicit prompt selectors (Artlist-specific and common patterns)
+  // 1. Explicit prompt selectors — highest priority
   const promptSelectors = [
     '[data-testid*="prompt" i]',
     '[aria-label*="prompt" i]',
@@ -309,34 +321,41 @@ function findMainTextarea() {
     '[id*="prompt" i]',
     '[class*="prompt" i] textarea',
     '[class*="prompt" i] [contenteditable]',
-    '[class*="prompt" i]',
   ]
   for (const sel of promptSelectors) {
     try {
       for (const el of document.querySelectorAll(sel)) {
+        if (isInChrome(el) || isSearchInput(el)) continue
         const r = el.getBoundingClientRect()
-        const text = el.value || el.innerText || el.textContent || ''
-        if (r.width > 80 && text.trim().length > 0) return el
+        const text = (el.value || el.innerText || el.textContent || '').trim()
+        if (r.width > 80 && text.length >= 10) {
+          console.log('[PM] prompt found via selector:', sel, '| text:', text.slice(0, 60))
+          return el
+        }
       }
     } catch {}
   }
 
-  // 2. Standard <textarea>
+  // 2. Standard textarea — not in chrome, not a search, has meaningful content
   for (const el of document.querySelectorAll('textarea')) {
+    if (isInChrome(el) || isSearchInput(el)) continue
     const r = el.getBoundingClientRect()
-    if (r.width > 100 && r.top >= 0 && r.bottom <= window.innerHeight + 200) return el
+    const text = (el.value || el.innerText || '').trim()
+    if (r.width > 100 && r.top >= -100 && r.bottom <= window.innerHeight + 300 && text.length >= 20) {
+      console.log('[PM] prompt found via textarea | text:', text.slice(0, 60))
+      return el
+    }
   }
 
-  // 3. contenteditable
+  // 3. Contenteditable — not in chrome, has content
   for (const el of document.querySelectorAll('[contenteditable="true"],[contenteditable=""]')) {
+    if (isInChrome(el) || isSearchInput(el)) continue
     const r = el.getBoundingClientRect()
-    if (r.width > 100 && r.height > 20 && r.top >= 0 && r.bottom <= window.innerHeight + 200) return el
-  }
-
-  // 4. Large visible input with meaningful text
-  for (const el of document.querySelectorAll('input[type=text],input:not([type])')) {
-    const val = el.value || ''
-    if (val.length > 15) return el
+    const text = (el.innerText || el.textContent || '').trim()
+    if (r.width > 100 && r.height > 20 && r.top >= -100 && r.bottom <= window.innerHeight + 300 && text.length >= 20) {
+      console.log('[PM] prompt found via contenteditable | text:', text.slice(0, 60))
+      return el
+    }
   }
 
   return null
@@ -361,15 +380,80 @@ chrome.runtime.onMessage.addListener((msg) => {
 })
 
 // ── Data extraction ───────────────────────────────────────────────────────────
+
+// Words that indicate a UI element, not a real prompt
+const UI_WORDS = ['generate', 'cancel', 'download', 'share', 'save', 'upload',
+  'sign in', 'log in', 'menu', 'settings', 'video & image', 'image generation',
+  'video generation', 'try again', 'back', 'next', 'close', 'open']
+
+function looksLikePrompt(text) {
+  if (!text || text.length < 40) return false         // too short for a real prompt
+  if (text.length > 3000) return false                // suspiciously long
+  const lower = text.toLowerCase()
+  // Reject if it's mostly UI labels
+  for (const w of UI_WORDS) {
+    if (lower.startsWith(w) && text.length < 80) return false
+  }
+  return true
+}
+
+// Find text in a sibling/child of a "Prompt" label element
+function findPromptNearLabel() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_ELEMENT)
+  while (walker.nextNode()) {
+    const el = walker.currentNode
+    // Skip interactive chrome
+    if (el.closest('nav,header,footer,button,[role="button"],[role="navigation"]')) continue
+    const ownText = (el.childNodes[0]?.textContent || '').trim().toLowerCase()
+    if (ownText === 'prompt' || ownText === 'prompt:' || ownText === 'the prompt') {
+      // Check next sibling, parent's next sibling, or nearby p/span
+      const candidates = [
+        el.nextElementSibling,
+        el.parentElement?.nextElementSibling,
+        el.parentElement?.parentElement?.querySelector('p, [class*="text"], [class*="content"]'),
+      ]
+      for (const c of candidates) {
+        if (!c || c === el) continue
+        const t = (c.innerText || c.textContent || '').trim()
+        if (looksLikePrompt(t)) {
+          console.log('[PM] prompt found near "Prompt" label | text:', t.slice(0, 80))
+          return t
+        }
+      }
+    }
+  }
+  return ''
+}
+
+// Find prompt text that appears in the same visual container as the video
+function findPromptNearVideo(videoEl) {
+  if (!videoEl) return ''
+  // Walk up until we find a container that holds both video and substantial text
+  let container = videoEl.parentElement
+  for (let i = 0; i < 6 && container; i++) {
+    const texts = [...container.querySelectorAll('p, [class*="prompt" i], [class*="text" i]')]
+    for (const el of texts) {
+      if (el.closest('nav,header,footer,button')) continue
+      const t = (el.innerText || el.textContent || '').trim()
+      if (looksLikePrompt(t)) {
+        console.log('[PM] prompt found near video | text:', t.slice(0, 80))
+        return t
+      }
+    }
+    container = container.parentElement
+  }
+  return ''
+}
+
 function extractData() {
   const url = window.location.href
   const p = new URLSearchParams(window.location.search)
 
-  // Best video element
+  // ── Video ──────────────────────────────────────────────────────────────────
   let bestVideo = null
   for (const v of document.querySelectorAll('video')) {
     const r = v.getBoundingClientRect()
-    if (r.width >= 50 && r.height >= 30) {
+    if (r.width >= 80 && r.height >= 50) {
       if (!bestVideo || r.width * r.height > bestVideo.area) {
         bestVideo = { el: v, area: r.width * r.height }
       }
@@ -378,39 +462,67 @@ function extractData() {
   const videoSrc = bestVideo ? (bestVideo.el.currentSrc || bestVideo.el.src || '') : ''
   const duration = bestVideo && isFinite(bestVideo.el.duration) ? Math.round(bestVideo.el.duration) : 0
 
-  // Prompt text — try input fields, then look for prompt displayed near video
+  // ── Prompt — 5 strategies, best signal wins ────────────────────────────────
   let prompt = ''
-  const textarea = findMainTextarea()
-  if (textarea) prompt = (textarea.value || textarea.innerText || textarea.textContent || '').trim()
+  let promptSource = ''
 
-  // If still nothing, look for prompt text displayed as static text near the video area
+  // 1. URL param
+  const urlPrompt = p.get('prompt') || p.get('assetPrompt')
+  if (!prompt && urlPrompt && looksLikePrompt(decodeURIComponent(urlPrompt))) {
+    prompt = decodeURIComponent(urlPrompt)
+    promptSource = 'url-param'
+  }
+
+  // 2. data-prompt attribute
   if (!prompt) {
-    const candidates = [
-      ...document.querySelectorAll('[class*="prompt" i]'),
-      ...document.querySelectorAll('[data-prompt]'),
-      ...document.querySelectorAll('[class*="description" i]'),
-    ]
-    for (const el of candidates) {
-      const t = (el.getAttribute('data-prompt') || el.innerText || el.textContent || '').trim()
-      if (t.length > 20 && t.length < 2000) { prompt = t; break }
+    const el = document.querySelector('[data-prompt]')
+    if (el) {
+      const t = el.getAttribute('data-prompt').trim()
+      if (looksLikePrompt(t)) { prompt = t; promptSource = 'data-prompt' }
     }
   }
 
-  // AI model detection
-  const bodyText = document.body.innerText.toLowerCase()
-  let model = 'other'
-  for (const m of ['sora', 'runway', 'veo', 'kling']) {
-    if (bodyText.includes(m)) { model = m; break }
+  // 3. Editable/readable field with explicit prompt semantics
+  if (!prompt) {
+    const textarea = findMainTextarea()
+    if (textarea) {
+      const t = (textarea.value || textarea.innerText || textarea.textContent || '').trim()
+      if (looksLikePrompt(t)) { prompt = t; promptSource = 'textarea' }
+    }
   }
 
-  // FPS — look for "24 fps", "30fps", "60 fps" in page text
+  // 4. Text sibling of a "Prompt" label
+  if (!prompt) {
+    const t = findPromptNearLabel()
+    if (t) { prompt = t; promptSource = 'label-sibling' }
+  }
+
+  // 5. Text in the same container as the video
+  if (!prompt && bestVideo) {
+    const t = findPromptNearVideo(bestVideo.el)
+    if (t) { prompt = t; promptSource = 'near-video' }
+  }
+
+  console.log('[PM] prompt source:', promptSource, '| text:', prompt.slice(0, 100) || '(none)')
+
+  // ── AI model ───────────────────────────────────────────────────────────────
+  // Look for model name in the visible page text, prioritise area near the video
+  const searchArea = bestVideo?.el?.closest('[class*="panel"],[class*="sidebar"],[class*="detail"],[class*="info"]')
+    || document.body
+  const areaText = (searchArea.innerText || '').toLowerCase()
+  let model = 'other'
+  for (const m of ['sora', 'runway', 'veo', 'kling']) {
+    if (areaText.includes(m)) { model = m; break }
+  }
+
+  // ── FPS ────────────────────────────────────────────────────────────────────
   let fps = ''
-  const fpsMatch = document.body.innerText.match(/\b(\d{2,3})\s*fps\b/i)
+  const fpsMatch = (searchArea.innerText || document.body.innerText).match(/\b(\d{2,3})\s*fps\b/i)
   if (fpsMatch) fps = fpsMatch[1]
   if (!fps && p.get('assetFps')) fps = p.get('assetFps')
   if (!fps && p.get('fps'))      fps = p.get('fps')
 
-  // Asset title — try h1, then page <title>
+  // ── Asset title ────────────────────────────────────────────────────────────
   let assetTitle = ''
   const h1 = document.querySelector('h1')
   if (h1?.innerText?.trim()) assetTitle = h1.innerText.trim()
@@ -451,31 +563,39 @@ function showSavePanel() {
     data.duration ? `${data.duration}s` : '',
   ].filter(Boolean)
 
+  const modelOpts = ['sora','runway','veo','kling','other']
+    .map(m => `<option value="${m}" ${data.model===m?'selected':''}>${m.charAt(0).toUpperCase()+m.slice(1)}</option>`).join('')
+
   panel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div style="display:flex;align-items:center;gap:9px">
         <span style="font-size:18px">🎬</span>
         <span style="font-weight:700;font-size:14px">Save to Prompt Manager</span>
       </div>
       <button id="ph-close" style="background:none;border:none;color:#555;cursor:pointer;font-size:22px;line-height:1;padding:0 4px">×</button>
     </div>
-    <div style="display:flex;gap:8px;margin-bottom:18px">
-      <div style="${statusBox(hasVideo)}">
-        <div style="font-size:16px;margin-bottom:4px">${hasVideo ? '🎥' : '⬜'}</div>
-        <div style="font-size:10px;color:${hasVideo ? '#4ade80' : '#555'}">${hasVideo ? 'Video' : 'No video'}</div>
+
+    ${metaTags.length ? `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">${metaTags.map(t=>`<span style="background:#222;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 7px;font-size:10px;font-family:monospace;color:#aaa">${esc(t)}</span>`).join('')}</div>` : ''}
+
+    <div style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.07em">Prompt</label>
+        <span style="font-size:10px;color:${hasPrompt ? '#4ade80' : '#f87171'}">${hasPrompt ? '✓ detected' : '⚠ not detected — type manually'}</span>
       </div>
-      <div style="${statusBox(hasPrompt)}">
-        <div style="font-size:16px;margin-bottom:4px">${hasPrompt ? '✍️' : '⬜'}</div>
-        <div style="font-size:10px;color:${hasPrompt ? '#4ade80' : '#555'}">${hasPrompt ? 'Prompt' : 'No prompt'}</div>
-      </div>
-      <div style="${statusBox(data.model !== 'other')}">
-        <div style="font-size:11px;font-weight:700;color:${data.model !== 'other' ? '#fff' : '#555'};margin-bottom:4px;margin-top:3px;text-transform:uppercase">${esc(data.model)}</div>
-        <div style="font-size:10px;color:${data.model !== 'other' ? '#4ade80' : '#555'}">Model</div>
-      </div>
+      <textarea id="ph-prompt" style="width:100%;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:9px 11px;color:#fff;font-size:12px;font-family:monospace;line-height:1.5;resize:vertical;min-height:80px;max-height:180px;outline:none;box-sizing:border-box"
+        placeholder="Paste or type the prompt here…">${esc(data.prompt)}</textarea>
     </div>
-    ${metaTags.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${metaTags.map(t => `<span style="background:#222;border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:2px 8px;font-size:10px;font-family:monospace;color:#aaa">${esc(t)}</span>`).join('')}</div>` : ''}
-    ${data.assetTitle ? `<div style="font-size:11px;color:#aaa;margin-bottom:10px">${esc(data.assetTitle.slice(0,60))}</div>` : ''}
-    ${hasPrompt ? `<div style="background:#111;border:1px solid rgba(255,255,255,0.07);border-radius:8px;padding:10px 12px;margin-bottom:18px;font-size:11px;color:#888;max-height:60px;overflow:hidden;line-height:1.5">${esc(data.prompt.slice(0,180))}${data.prompt.length > 180 ? '…' : ''}</div>` : ''}
+
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <div style="flex:1">
+        <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.07em;display:block;margin-bottom:5px">AI Model</label>
+        <select id="ph-model" style="width:100%;background:#111;border:1px solid rgba(255,255,255,0.1);border-radius:9px;padding:8px 10px;color:#fff;font-size:12px;outline:none;cursor:pointer">
+          ${modelOpts}
+        </select>
+      </div>
+      ${hasVideo ? `<div style="display:flex;align-items:flex-end;padding-bottom:1px"><span style="background:#0d1f12;border:1px solid #1a3a22;border-radius:8px;padding:7px 10px;font-size:11px;color:#4ade80;white-space:nowrap">🎥 Video found</span></div>` : ''}
+    </div>
+
     ${noProjects ? `
     <div style="background:#111;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:16px;text-align:center;margin-bottom:16px">
       <div style="font-size:22px;margin-bottom:8px">📁</div>
@@ -483,10 +603,10 @@ function showSavePanel() {
       <a href="${HUB_URL}/projects" target="_blank" style="display:inline-block;background:#fff;color:#000;text-decoration:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:700">Open Prompt Manager →</a>
     </div>
     ` : `
-    <div style="margin-bottom:16px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
-        <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.08em">Project</label>
-        <a id="ph-open" href="${HUB_URL}/projects" target="_blank" style="font-size:10px;color:#555;text-decoration:none;transition:color 0.15s" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Open in Prompt Manager ↗</a>
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.07em">Project</label>
+        <a id="ph-open" href="${HUB_URL}/projects" target="_blank" style="font-size:10px;color:#555;text-decoration:none" onmouseover="this.style.color='#aaa'" onmouseout="this.style.color='#555'">Open in Prompt Manager ↗</a>
       </div>
       <select id="ph-project" style="width:100%;background:#111;border:1px solid rgba(255,255,255,0.12);border-radius:9px;padding:9px 11px;color:#fff;font-size:13px;outline:none;cursor:pointer;appearance:auto">
         <option value="">— Select project —</option>${opts}
@@ -515,13 +635,17 @@ function showSavePanel() {
       const projectId = panel.querySelector('#ph-project').value
       if (!projectId) { panel.querySelector('#ph-project').style.borderColor = 'rgba(239,68,68,0.6)'; return }
 
+      // Read editable fields — user may have corrected them
+      const finalPrompt = panel.querySelector('#ph-prompt').value.trim()
+      const finalModel  = panel.querySelector('#ph-model').value
+
       const saveEl = panel.querySelector('#ph-save')
       saveEl.textContent = 'Saving…'; saveEl.style.opacity = '0.6'; saveEl.disabled = true
 
       const qs = new URLSearchParams({
         artlistUrl: data.url, assetId: data.assetId,
         width: data.width, height: data.height, ratio: data.ratio,
-        model: data.model, prompt: data.prompt.slice(0, 800),
+        model: finalModel, prompt: finalPrompt.slice(0, 800),
         projectId, autoSave: '1',
       })
       if (data.videoSrc)    qs.set('videoSrc',    data.videoSrc)
